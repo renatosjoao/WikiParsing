@@ -36,7 +36,6 @@ import java.util.logging.Level;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.zip.GZIPOutputStream;
-
 import org.apache.commons.cli.BasicParser;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -834,49 +833,6 @@ public class WikipediaSAXParser {
 		return text.trim();
 	}
 
-	/**
-	 * 
-	 * @param wikiText
-	 * @return
-	 * @throws WikiTextParserException
-	 */
-	// TODO: ignore brackets in html/xml comments (or better still implement a
-	// formal grammar for wiki markup)
-	private InfoBox parseInfoBox(String wikiText)	throws WikiTextParserException {
-		final String INFOBOX_CONST_STR = "{{Infobox";
-		int startPos = wikiText.indexOf(INFOBOX_CONST_STR);
-		if (startPos < 0)
-			return null;
-		int bracketCount = 2;
-		int endPos = startPos + INFOBOX_CONST_STR.length();
-		for (; endPos < wikiText.length(); endPos++) {
-			switch (wikiText.charAt(endPos)) {
-			case '}':
-				bracketCount--;
-				break;
-			case '{':
-				bracketCount++;
-				break;
-			default:
-			}
-			if (bracketCount == 0)
-				break;
-		}
-
-		if (bracketCount != 0) {
-			throw new WikiTextParserException("Malformed Infobox, couldn't match the brackets.");
-		}
-
-		String infoBoxText = wikiText.substring(startPos, endPos + 1);
-		infoBoxText = stripCite(infoBoxText); // strip clumsy {{cite}} tags
-		// strip any html formatting
-		infoBoxText = infoBoxText.replaceAll("&gt;", ">");
-		infoBoxText = infoBoxText.replaceAll("&lt;", "<");
-		infoBoxText = infoBoxText.replaceAll("<ref.*?>.*?</ref>", " ");
-		infoBoxText = infoBoxText.replaceAll("</?.*?>", " ");
-		return new InfoBox(infoBoxText);
-	}
-	
 	
 	private static String stripInfoBox(String wikiText) {
 		String INFOBOX_CONST_STR = "{{Infobox";
