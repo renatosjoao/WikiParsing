@@ -101,8 +101,11 @@ public class WikipediaSAXParser {
 	private String[] args = null;
 	private static Options options = new Options();
 	private static Map<String, List<String>> pageTitlesMap = new TreeMap<String, List<String>>();
-	private static ArrayList<String> pTitleList = new ArrayList<String>();
-	private static ArrayList<String> allPagesTitles = new ArrayList<String>();
+
+	private static ArrayList<String> pagesTitlesList = new ArrayList<String>(); 		//This is a list of pages titles without special pages (i.e. Category:, File:, Image:, etc) and without #REDIRECT
+	private static ArrayList<String> allPagesTitlesList = new ArrayList<String>();   	//This is  a list with all the pages titles.
+	private static ArrayList<String> specialPagesTitlesList = new ArrayList<String>();  //This is  a list with ONLY the SPECIAL pages titles. (i.e. Category:, File:, Image:, etc)
+	private static ArrayList<String> redirectPagesTitlesList = new ArrayList<String>(); //This is  a list with ONLY the pages titles with redirection. (i.e. #REDIRECT)
 	/**
 	 * @throws ParseException
 	 * @param args
@@ -133,7 +136,7 @@ public class WikipediaSAXParser {
 		//if (ff.exists()) {
 		 //set = loadTitlesList(pageTitles);
 		 //} else {
-		writePageTitles(args[0]);
+		//writePageTitles(args[0]);
 		//System.exit(1);
 		// set = loadTitlesList(pageTitles);
 		// }
@@ -239,6 +242,7 @@ public class WikipediaSAXParser {
 										continue;
 									}
 									if (mention.contains(":") || (entitylink.contains(":"))) { // ignoring rubbish such as Image:Kropotkin // Nadar.jpg]
+										System.out.println("");
 										continue;
 									}
 									MENTION_ENTITY++;
@@ -485,8 +489,7 @@ public class WikipediaSAXParser {
 	}
 
 	/**
-	 * This function writes the page titles to a file. It writes two files
-	 * One of them is the page titles file with redirections(i.e #REDIRECT) and the other one is the page titles without redirections.
+	 * This function writes the page titles to output file. 
 	 * 
 	 * @param XMLFile
 	 * @throws UnsupportedEncodingException
@@ -495,12 +498,6 @@ public class WikipediaSAXParser {
 	private static void writePageTitles(String XMLFile)	throws FileNotFoundException, UnsupportedEncodingException {
 		long start = System.currentTimeMillis();
 		WikiXMLParser wxsp = null;
-		String pageTitles_RED = "pageTitles_REDIRECT.txt";
-		String pageTitles = "pageTitles_NO_REDIRECT.txt";
-		String allPageTitles = "pagesTitles.txt";
-		ArrayList<String> specialPagesTitles = new ArrayList<String>();
-		ArrayList<String> redirectPages = new ArrayList<String>();
-		
 		try {
 			wxsp = WikiXMLParserFactory.getSAXParser(XMLFile);
 		} catch (MalformedURLException e) {
@@ -517,16 +514,15 @@ public class WikipediaSAXParser {
 							pTitle.contains("User:") || pTitle.contains("MediaWiki:") || pTitle.contains("Wikipedia:") ||
 							pTitle.contains("Portal:") || pTitle.contains("Template:") || pTitle.contains("File:")){
 						SPECIAL_PAGES++;
-						specialPagesTitles.add(pTitle);
+						specialPagesTitlesList.add(pTitle);
 					}else if (mRedirect.find()) {
-							 redirectPages.add(pTitle);
-								REDIRECTION++;
-							}else{// In case it is not #REDIRECT. So I am getting the page title and adding to list
-								//This is the actual list of page titles I am interested.
+							 redirectPagesTitlesList.add(pTitle);
+							 REDIRECTION++;
+							}else{// In case it is not #REDIRECT. So I am getting the page title and adding to list. This is the actual list of page titles I am interested.
 								NOREDIRECTION++;
-								pTitleList.add(pTitle);
+								pagesTitlesList.add(pTitle);
 							}
-						allPagesTitles.add(pTitle);
+						allPagesTitlesList.add(pTitle);
 						TOTAL_PAGE_TITLE++; 
 				}
 			});
@@ -534,50 +530,56 @@ public class WikipediaSAXParser {
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
-		
-		//PrintWriter pTitleWriter = new PrintWriter(pageTitles, "UTF-8");		
-		PrintWriter pTitleREDWriter = new PrintWriter(pageTitles_RED, "UTF-8");
-		PrintWriter allPagTitles = new PrintWriter(allPageTitles, "UTF-8");
-		PrintWriter specialPagTitles = new PrintWriter("pagesTitles_SPECIAL.txt", "UTF-8");
-		
-		Collections.sort(specialPagesTitles); 
-		specialPagTitles.println("<<< Total Numer of pages: "+SPECIAL_PAGES+" >>>");
-		for(String title:specialPagesTitles){  
-			specialPagTitles.println(title);
+		//***************************************************************************************//
+		//Writing all pages titles to output file "pageTitles_ALL.txt"
+		PrintWriter allPagesTitlesWriter = new PrintWriter("pageTitles_ALL.txt", "UTF-8");
+		Collections.sort(allPagesTitlesList); 
+		allPagesTitlesWriter.println("<<< Total number of pages: "+TOTAL_PAGE_TITLE+" >>>");
+		for(String title:allPagesTitlesList){
+			allPagesTitlesWriter.println(title);
 		}
-		specialPagTitles.flush();
-		specialPagTitles.close();
-		
-		Collections.sort(allPagesTitles); 
-		allPagTitles.println("<<< Total Numer of pages: "+TOTAL_PAGE_TITLE+" >>>");
-		for(String title:allPagesTitles){  
-			allPagTitles.println(title);
+		allPagesTitlesWriter.flush();
+		allPagesTitlesWriter.close();
+
+		//***************************************************************************************//
+		//Writing ONLY SPECIAL pages titles to output file "pageTitles_SPECIAL.txt"
+		PrintWriter specialPagesTitlesWriter = new PrintWriter("pagesTitles_SPECIAL.txt", "UTF-8");
+		Collections.sort(specialPagesTitlesList); 
+		specialPagesTitlesWriter.println("<<< Number of special pages titles: "+SPECIAL_PAGES+" >>>");
+		for(String title:specialPagesTitlesList){
+			specialPagesTitlesWriter.println(title);
 		}
-		allPagTitles.flush();
-		allPagTitles.close();
-		
-		//Collections.sort(pTitleList); //sorting the page titles list without redirections.
-		//pTitleWriter.println("<<< Numer of pages: "+NOREDIRECTION+" >>>");
-		//for(String title:pTitleList){  //writing the page titles without redirections to list;
-		//	pTitleWriter.println(title);
-		//}
-		//pTitleWriter.flush();
-		//pTitleWriter.close();
-		
-				
-		pTitleREDWriter.println("<<< Numer of pages redirected: "+REDIRECTION+" >>>");
-		Collections.sort(redirectPages);
-		for(String s:redirectPages){
-			pTitleREDWriter.println(s);
+		specialPagesTitlesWriter.flush();
+		specialPagesTitlesWriter.close();
+
+		//***************************************************************************************//
+		//Writing ONLY pages titles with redirection (#REDIRECT) to output file "pageTitles_REDIRECT.txt"
+		PrintWriter redirectPagesTitlesWriter = new PrintWriter("pagesTitles_REDIRECT.txt", "UTF-8");
+		Collections.sort(redirectPagesTitlesList);
+		redirectPagesTitlesWriter.println("<<< Number of redirected pages title: "+REDIRECTION+" >>>");
+		for(String title:redirectPagesTitlesList){
+			redirectPagesTitlesWriter.println(title);
 		}
-		pTitleREDWriter.flush();
-		pTitleREDWriter.close();
-		
+		redirectPagesTitlesWriter.flush();
+		redirectPagesTitlesWriter.close();
+
+		//***************************************************************************************//
+		//Writing ONLY pages titles without redirection (#REDIRECT) and without SPECIAL pages to output file "pageTitles.txt"
+		PrintWriter pagesTitlesWriter = new PrintWriter("pagesTitles.txt", "UTF-8");
+		Collections.sort(pagesTitlesList);
+		pagesTitlesWriter.println("<<< Number of pages titles: "+NOREDIRECTION+" >>>");
+		for(String title:pagesTitlesList){
+			pagesTitlesWriter.println(title);
+		}
+		pagesTitlesWriter.flush();
+		pagesTitlesWriter.close();
+
+		//***************************************************************************************//
 		long stop = System.currentTimeMillis();
 		System.out.println("Finished writing page titles files in "+ ((stop - start) / 1000.0) + " seconds.");
-		System.out.println("Total number of SPECIAL pages : "+SPECIAL_PAGES);
-		System.out.println("Total number of #REDIRECTION pages : "+REDIRECTION);
-		System.out.println("Total number of pages without #REDIRECTION pages :" +NOREDIRECTION);
+		System.out.println("Number of SPECIAL pages : "+SPECIAL_PAGES);
+		System.out.println("Number of #REDIRECTION pages : "+REDIRECTION);
+		System.out.println("Number of pages without #REDIRECTION pages :" +NOREDIRECTION);
 		System.out.println("Total number of pages : "+TOTAL_PAGE_TITLE);
 	}
 
