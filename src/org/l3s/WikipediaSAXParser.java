@@ -27,6 +27,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -36,6 +37,7 @@ import java.util.logging.Level;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.zip.GZIPOutputStream;
+
 import org.apache.commons.cli.BasicParser;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -47,6 +49,7 @@ import org.codehaus.jackson.map.ObjectMapper;
 import org.json.simple.JSONArray;
 import org.l3s.dbpedia.DBPediaType;
 import org.l3s.test.Cli;
+
 import edu.jhu.nlp.wikipedia.PageCallbackHandler;
 import edu.jhu.nlp.wikipedia.WikiPage;
 import edu.jhu.nlp.wikipedia.WikiTextParserException;
@@ -54,23 +57,25 @@ import edu.jhu.nlp.wikipedia.WikiXMLParser;
 import edu.jhu.nlp.wikipedia.WikiXMLParserFactory;
 
 public class WikipediaSAXParser {
-	private static Pattern categoryPattern = Pattern.compile("\\[\\["+ "Category" + ":(.*?)\\]\\]", Pattern.MULTILINE| Pattern.CASE_INSENSITIVE);
-	private static Pattern OtherPattern = Pattern.compile("\\[\\[[A-Z]+:(.*?)\\]\\]", Pattern.MULTILINE	| Pattern.CASE_INSENSITIVE);
-	private static Pattern stylesPattern = Pattern.compile("\\{\\|.*?\\|\\}$",	Pattern.MULTILINE | Pattern.DOTALL);
-	private static Pattern infoboxCleanupPattern = Pattern.compile(	"\\{\\{infobox.*?\\}\\}$", Pattern.MULTILINE | Pattern.DOTALL| Pattern.CASE_INSENSITIVE);
-	private static Pattern curlyCleanupPattern0 = Pattern.compile("^\\{\\{.*?\\}\\}$", Pattern.MULTILINE | Pattern.DOTALL);
-	private static Pattern curlyCleanupPattern1 = Pattern.compile("\\{\\{.*?\\}\\}", Pattern.MULTILINE | Pattern.DOTALL);
+	//private static Pattern categoryPattern = Pattern.compile("\\[\\["+ "Category" + ":(.*?)\\]\\]", Pattern.MULTILINE| Pattern.CASE_INSENSITIVE);
+	//private static Pattern OtherPattern = Pattern.compile("\\[\\[[A-Z]+:(.*?)\\]\\]", Pattern.MULTILINE	| Pattern.CASE_INSENSITIVE);
+    private static Pattern stylesPattern = Pattern.compile("\\{\\|.*?\\|\\}$", Pattern.MULTILINE | Pattern.DOTALL);
+    private static Pattern infoboxCleanupPattern = Pattern.compile("\\{\\{infobox.*?\\}\\}$", Pattern.MULTILINE | Pattern.DOTALL | Pattern.CASE_INSENSITIVE);
+    private static Pattern curlyCleanupPattern0 = Pattern.compile("^\\{\\{.*?\\}\\}$", Pattern.MULTILINE | Pattern.DOTALL);
+    private static Pattern curlyCleanupPattern1 = Pattern.compile("\\{\\{.*?\\}\\}", Pattern.MULTILINE | Pattern.DOTALL);
+	//private static Pattern curlyCleanupPattern0 = Pattern.compile("^\\{\\{.*?\\}\\}$", Pattern.MULTILINE | Pattern.DOTALL);
+	//private static Pattern curlyCleanupPattern1 = Pattern.compile("\\{\\{.*?\\}\\}", Pattern.MULTILINE | Pattern.DOTALL);
+    private static Pattern refCleanupPattern = Pattern.compile("<ref>.*?</ref>", Pattern.MULTILINE | Pattern.DOTALL);
 	// private static Pattern cleanupPattern0 =// Pattern.compile("^\\[\\[.*?:.*?\\]\\]$", Pattern.MULTILINE |// Pattern.DOTALL);
 	// private static Pattern cleanupPattern1 =// Pattern.compile("\\[\\[(.*?)\\]\\]", Pattern.MULTILINE | Pattern.DOTALL);
-	private static Pattern refCleanupPattern = Pattern.compile("<ref>.*?</ref>", Pattern.MULTILINE | Pattern.DOTALL);
+	//private static Pattern refCleanupPattern = Pattern.compile("<ref>.*?</ref>", Pattern.MULTILINE | Pattern.DOTALL);
 	//private static Pattern refCleanupPattern1 = Pattern.compile("<ref.*?>.*?</ref>", Pattern.MULTILINE | Pattern.DOTALL);
-	private static Pattern refCleanupPattern1 = Pattern.compile("<ref.*?/.*?>", Pattern.MULTILINE | Pattern.DOTALL);
-	private static Pattern refCleanupPattern2 = Pattern.compile("<ref.*?/>", Pattern.MULTILINE | Pattern.DOTALL);
+	//private static Pattern refCleanupPattern1 = Pattern.compile("<ref.*?/.*?>", Pattern.MULTILINE | Pattern.DOTALL);
+	//private static Pattern refCleanupPattern2 = Pattern.compile("<ref.*?/>", Pattern.MULTILINE | Pattern.DOTALL);
 	//private static Pattern testtranslatedTitle = Pattern.compile("\\[\\[[a-z]+:(.*?)\\]\\]");
-	private static Pattern translatedTitle = Pattern.compile("^\\[\\[[a-z-]+:(.*?)\\]\\]$", Pattern.MULTILINE);
-	private static Pattern commentsCleanupPattern = Pattern.compile("<!--.*?-->", Pattern.MULTILINE | Pattern.DOTALL);
-    private static Pattern htmlExtLinkPattern = Pattern.compile("\\[http:\\/\\/(.*?)\\]",Pattern.MULTILINE | Pattern.DOTALL);
-
+	//private static Pattern translatedTitle = Pattern.compile("^\\[\\[[a-z-]+:(.*?)\\]\\]$", Pattern.MULTILINE);
+    private static Pattern commentsCleanupPattern = Pattern.compile("<!--.*?-->", Pattern.MULTILINE | Pattern.DOTALL);
+    //private static Pattern htmlExtLinkPattern = Pattern.compile("\\[http:\\/\\/(.*?)\\]",Pattern.MULTILINE | Pattern.DOTALL);
 	// private static Pattern redirectPattern = Pattern.compile("#\\s*\\[\\[(.*?)\\]\\]", Pattern.CASE_INSENSITIVE);
 	private static Pattern redirectPattern = Pattern.compile("#REDIRECT.*\\[\\[(.*?)\\]\\]", Pattern.MULTILINE| Pattern.CASE_INSENSITIVE);
 	private static final Pattern URL = Pattern.compile("http://[^ <]+");
@@ -102,10 +107,10 @@ public class WikipediaSAXParser {
 	private static Options options = new Options();
 	private static Map<String, List<String>> pageTitlesMap = new TreeMap<String, List<String>>();
 
-	private static ArrayList<String> pagesTitlesList = new ArrayList<String>(); 		//This is a list of pages titles without special pages (i.e. Category:, File:, Image:, etc) and without #REDIRECT
-	private static ArrayList<String> allPagesTitlesList = new ArrayList<String>();   	//This is  a list with all the pages titles.
-	private static ArrayList<String> specialPagesTitlesList = new ArrayList<String>();  //This is  a list with ONLY the SPECIAL pages titles. (i.e. Category:, File:, Image:, etc)
-	private static ArrayList<String> redirectPagesTitlesList = new ArrayList<String>(); //This is  a list with ONLY the pages titles with redirection. (i.e. #REDIRECT)
+	private static List<String> pagesTitlesList = new LinkedList<String>(); 		//This is a list of pages titles without special pages (i.e. Category:, File:, Image:, etc) and without #REDIRECT
+	private static List<String> allPagesTitlesList = new LinkedList<String>();   	//This is  a list with all the pages titles.
+	private static List<String> specialPagesTitlesList = new LinkedList<String>();  //This is  a list with ONLY the SPECIAL pages titles. (i.e. Category:, File:, Image:, etc)
+	private static List<String> redirectPagesTitlesList = new LinkedList<String>(); //This is  a list with ONLY the pages titles with redirection. (i.e. #REDIRECT)
 	/**
 	 * @throws ParseException
 	 * @param args
@@ -136,7 +141,7 @@ public class WikipediaSAXParser {
 		//if (ff.exists()) {
 		 //set = loadTitlesList(pageTitles);
 		 //} else {
-		//writePageTitles(args[0]);
+		writePageTitles(args[0]);
 		//System.exit(1);
 		// set = loadTitlesList(pageTitles);
 		// }
@@ -154,6 +159,7 @@ public class WikipediaSAXParser {
 		//String outputJSON = jsonMapper.writerWithDefaultPrettyPrinter().writeValueAsString(redirection);
 
 		// sorting first
+		//sortList("./resource/listOfMentionsAndEntities.txt","articlesMentionsANDLinks_SORTED.txt");
 		sortList(articlesMentionsANDLinks,"articlesMentionsANDLinks_SORTED.txt");
 
 		// frequency count
@@ -196,7 +202,7 @@ public class WikipediaSAXParser {
 	 */
 	public static void writeMentionEntity(String inputFile, String outputFile) throws FileNotFoundException, UnsupportedEncodingException {
 		writer = new PrintWriter(outputFile, "UTF-8");
-		PrintWriter notinlistwriter = new PrintWriter("Link_NOT_in_LIST.txt","UTF-8");
+		//PrintWriter notinlistwriter = new PrintWriter("Link_NOT_in_LIST.txt","UTF-8");
 		long start = System.currentTimeMillis();
 		WikiXMLParser wxsp = null;
 		try {
@@ -210,27 +216,26 @@ public class WikipediaSAXParser {
 				public void process(WikiPage page) {
 					String wikitext = page.getWikiText().trim();
 					String text = getPlainText(wikitext);
+					System.out.println(text);
 					String title = page.getTitle().trim();
 					// As I am not interested in REDIRECT pages I am counting them but skipping to parse for mention/entity
 					// Even though I am adding the page title and the disambiguation to a TreeSet for later usage.
 					Matcher mRedirect = redirectPattern.matcher(wikitext);
-					if(title.contains("Category:") || title.contains("Help:") || title.contains("Image:") ||
-							title.contains("User:") || title.contains("MediaWiki:") || title.contains("Wikipedia:") ||
-							title.contains("Portal:") || title.contains("Template:") || title.contains("File:") ) {
+					if(title.contains("Category:") || title.contains("Help:") || title.contains("Image:") ||title.contains("User:") || title.contains("MediaWiki:") || title.contains("Wikipedia:") || title.contains("Portal:") || title.contains("Template:") || title.contains("File:") ) {
 						//DO NOTHING if it is a Special Page ! Special pages are pages such as Help: , Wikipedia:, User: pages
-					}else{
-						if(mRedirect.find()) {
+						}else{
+						//if(mRedirect.find()) {
 						//DO NOTHING if it is redirect page !			
-						}else {
+						//}else {
 							if ((text != null) && (!text.isEmpty()) && (text != "")) {
 								Matcher matcher = mentionEntityPattern.matcher(text);
 								while (matcher.find()) {									
 									String[] temp = matcher.group(1).split("\\|");
-									String mention = null;
-									String entitylink = null;
 									if (temp == null || temp.length == 0) {
 										continue;
 									}
+									String mention = null;
+									String entitylink = null;									
 									if (temp.length > 1) {
 										entitylink = temp[0].trim();
 										mention = temp[1].trim();
@@ -238,24 +243,24 @@ public class WikipediaSAXParser {
 										entitylink = temp[0].trim();
 										mention = temp[0].trim();
 									}
+									
 									if (mention.length() == 0 || (mention == "")|| (entitylink.length() == 0)|| (entitylink == "")) {
 										continue;
 									}
 									if (mention.contains(":") || (entitylink.contains(":"))) { // ignoring rubbish such as Image:Kropotkin // Nadar.jpg]
-										System.out.println("");
 										continue;
 									}
-									MENTION_ENTITY++;
-									if(allPagesTitles.contains(entitylink)){
+									//MENTION_ENTITY++;
+									//if(allPagesTitlesList.contains(entitylink)){
 									//if(pTitleList.contains(entitylink)){
-										IN_TITLES_LIST++;
-										String mentionEntity = mention + ";"+ entitylink;
-										writer.println(mentionEntity);
-										continue;
-									}else{
+									//IN_TITLES_LIST++;
+									String mentionEntity = mention.trim() + " ; "+ entitylink.trim();
+									writer.println(mentionEntity);
+									//continue;
+									//}else{
 										//entitylink is not in titleList
-										notinlistwriter.println(entitylink);
-									}
+									//	notinlistwriter.println(entitylink);
+									//}
 										
 										//else if (pageTitlesMap.get(entitylink)!=null) {
 									//		IN_MAP_KEYS++;
@@ -272,7 +277,7 @@ public class WikipediaSAXParser {
 									//			}
 									//		}
 									}
-							}
+							//}
 						}
 				}
 					}
@@ -283,8 +288,8 @@ public class WikipediaSAXParser {
 			}
 			writer.flush();
 			writer.close();
-			notinlistwriter.flush();
-			notinlistwriter.flush();
+			//notinlistwriter.flush();
+			//notinlistwriter.flush();
 			long stop = System.currentTimeMillis();
 			System.out.println("Finished collecting articles Mentions and Entities Links in "+ ((stop - start) / 1000.0) + " seconds.");
 			System.out.println("Number of mention/entities pairs : "+MENTION_ENTITY);
@@ -355,8 +360,8 @@ public class WikipediaSAXParser {
 		while ((line1 = buffReader1.readLine()) != null) {
 			line2 = buffReader2.readLine();
 			if (line2 != null) {
-				String[] elements1 = line1.split(";");
-				String[] elements2 = line2.split(";");
+				String[] elements1 = line1.split(" ; ");
+				String[] elements2 = line2.split(" ; ");
 				if (priorMap.isEmpty()) {
 					priorMap.put(elements1[1], 1.0);
 					if (!elements2[0].equalsIgnoreCase(elements1[0])) {
@@ -369,7 +374,7 @@ public class WikipediaSAXParser {
 							@SuppressWarnings("rawtypes")
 							Map.Entry pair = (Map.Entry) it.next();
 							Double priorProb = (Double) pair.getValue() / sum;
-							Pwriter.println(elements1[0] + ";" + pair.getKey()+ ";" + priorProb);
+							Pwriter.println(elements1[0].trim() + " ; " + pair.getKey().toString().trim()+ " ; " + priorProb.toString().trim());
 							it.remove();
 						}
 						priorMap = new HashMap<String, Double>();
@@ -398,7 +403,7 @@ public class WikipediaSAXParser {
 							@SuppressWarnings("rawtypes")
 							Map.Entry pair = (Map.Entry) it.next();
 							Double priorProb = (Double) pair.getValue() / sum;
-							Pwriter.println(elements1[0] + ";" + pair.getKey()	+ ";" + priorProb);
+							Pwriter.println(elements1[0].trim() + " ; " + pair.getKey().toString().trim()	+ " ; " + priorProb.toString().trim());
 							it.remove();
 						}
 						continue;
@@ -406,7 +411,7 @@ public class WikipediaSAXParser {
 				}
 
 			} else {
-				String[] elements1 = line1.split(";");
+				String[] elements1 = line1.split(" ; ");
 				if (priorMap.isEmpty()) {
 					priorMap.put(elements1[1], 1.0);
 					double sum = 0.0;
@@ -418,7 +423,7 @@ public class WikipediaSAXParser {
 						@SuppressWarnings("rawtypes")
 						Map.Entry pair = (Map.Entry) it.next();
 						Double priorProb = (Double) pair.getValue() / sum;
-						Pwriter.println(elements1[0] + ";" + pair.getKey()	+ ";" + priorProb);
+						Pwriter.println(elements1[0].trim() + " ; " + pair.getKey().toString().trim()	+ " ; " + priorProb.toString().trim());
 						it.remove();
 					}
 
@@ -439,7 +444,7 @@ public class WikipediaSAXParser {
 						@SuppressWarnings("rawtypes")
 						Map.Entry pair = (Map.Entry) it.next();
 						Double priorProb = (Double) pair.getValue() / sum;
-						Pwriter.println(elements1[0] + ";" + pair.getKey()	+ ";" + priorProb);
+						Pwriter.println(elements1[0].trim() + " ; " + pair.getKey().toString().trim()	+ " ; " + priorProb.toString().trim());
 					}
 				}
 			}
@@ -466,7 +471,7 @@ public class WikipediaSAXParser {
 		long start = System.currentTimeMillis();
 		BufferedReader buffReader1 = new BufferedReader(new FileReader(inputListFile));
 		PrintWriter Pwriter = new PrintWriter(outputListFile, "UTF-8");
-		List<String> mentionEntityList = new ArrayList<String>();
+		List<String> mentionEntityList = new LinkedList<String>();
 		String inputLine = null;
 		while ((inputLine = buffReader1.readLine()) != null) {
 			mentionEntityList.add(inputLine);
@@ -490,7 +495,10 @@ public class WikipediaSAXParser {
 
 	/**
 	 * This function writes the page titles to output file. 
-	 * 
+	 * It writes  the files :			pageTitles_ALL.txt				// All the pages titles in the dump
+	 * 									pagesTitles_SPECIAL.txt			// All the special pages titles  in the dump
+	 *									pagesTitles_REDIRECT.txt		// All the redirected pages titles
+	 *									pagesTitles.txt					// All the articles titles ( no special pages and no redirections )
 	 * @param XMLFile
 	 * @throws UnsupportedEncodingException
 	 * @throws FileNotFoundException
@@ -515,15 +523,33 @@ public class WikipediaSAXParser {
 							pTitle.contains("Portal:") || pTitle.contains("Template:") || pTitle.contains("File:")){
 						SPECIAL_PAGES++;
 						specialPagesTitlesList.add(pTitle);
-					}else if (mRedirect.find()) {
+					}else{
+						allPagesTitlesList.add(pTitle);
+						TOTAL_PAGE_TITLE++;
+						if (mRedirect.find()) {					
 							 redirectPagesTitlesList.add(pTitle);
 							 REDIRECTION++;
+/********/
+							 Matcher matcher = mentionEntityPattern.matcher(wikitext);	
+							 if(matcher.find()){
+								 String redirectedTitle = matcher.group(1);
+								 List<String> mappedList = pageTitlesMap.get(redirectedTitle); 							
+								 if(mappedList == null){ 	
+									 mappedList = new ArrayList<String>();
+									 mappedList.add(pTitle);
+									 pageTitlesMap.put(redirectedTitle,mappedList);
+								 }else{
+									 mappedList.add(pTitle);
+									 pageTitlesMap.put(redirectedTitle,mappedList);
+								 }
+							 }
+/***********/
 							}else{// In case it is not #REDIRECT. So I am getting the page title and adding to list. This is the actual list of page titles I am interested.
 								NOREDIRECTION++;
 								pagesTitlesList.add(pTitle);
 							}
-						allPagesTitlesList.add(pTitle);
-						TOTAL_PAGE_TITLE++; 
+						
+					}
 				}
 			});
 			wxsp.parse();
@@ -576,6 +602,14 @@ public class WikipediaSAXParser {
 
 		//***************************************************************************************//
 		long stop = System.currentTimeMillis();
+		
+		
+		allPagesTitlesList.clear();
+		specialPagesTitlesList.clear();
+		redirectPagesTitlesList.clear();
+		pagesTitlesList.clear();
+		System.gc();
+		
 		System.out.println("Finished writing page titles files in "+ ((stop - start) / 1000.0) + " seconds.");
 		System.out.println("Number of SPECIAL pages : "+SPECIAL_PAGES);
 		System.out.println("Number of #REDIRECTION pages : "+REDIRECTION);
@@ -684,7 +718,7 @@ public class WikipediaSAXParser {
 		String inpLine = null;
 		Map<String, Integer> frequency = new HashMap<String, Integer>();
 		while ((inpLine = bffReader.readLine()) != null) {
-			String[] words = inpLine.split(";");
+			String[] words = inpLine.split(" ; ");
 			if (words.length >= 1) {
 				String key = words[0].trim();
 				if ((!key.isEmpty()) && (key != null) && (key != "")) {
@@ -704,12 +738,12 @@ public class WikipediaSAXParser {
 		String inp = null;
 		while ((inp = buffReader.readLine()) != null) {
 
-			String[] keys = inp.split(";");
+			String[] keys = inp.split(" ; ");
 			if (keys.length >= 1) {
 				String key = keys[0].trim();
 				if ((key != null) && (!key.isEmpty() && (key != ""))) {
 					Integer value = frequency.get(key);
-					pWriter.println(inp + ";" + value);
+					pWriter.println(inp.trim() + " ; " + value.toString().trim());
 				}
 			}
 		}
@@ -734,8 +768,7 @@ public class WikipediaSAXParser {
 	 *             ASA; ASA; 2
 	 */
 
-	public static void frequencyCountUnique(String inputFile, String outFile)
-			throws IOException {
+	public static void frequencyCountUnique(String inputFile, String outFile) throws IOException {
 		long start = System.currentTimeMillis();
 		FileReader fReader = new FileReader(new File(inputFile));
 		BufferedReader bffReader = new BufferedReader(fReader);
@@ -743,11 +776,10 @@ public class WikipediaSAXParser {
 		Set<String> treee = new TreeSet<String>();
 		Map<String, Integer> frequency = new TreeMap<String, Integer>();
 		while ((inpLine = bffReader.readLine()) != null) {
-			String[] words = inpLine.split(";");
+			String[] words = inpLine.split(" ; ");
 			if (words.length >= 1) {
-				String key_value = words[0].trim() + ";" + words[1].trim();
-				if ((!key_value.isEmpty()) && (key_value != null)
-						&& (key_value != "")) {
+				String key_value = words[0].trim() + " ; " + words[1].trim();
+				if ((!key_value.isEmpty()) && (key_value != null) && (key_value != "")) {
 					Integer f = frequency.get(key_value);
 					if (f == null) {
 						f = 0;
@@ -763,15 +795,14 @@ public class WikipediaSAXParser {
 		Iterator<?> it = frequency.entrySet().iterator();
 		while (it.hasNext()) {
 			Map.Entry pair = (Map.Entry) it.next();
-			pWriter.println(pair.getKey() + ";" + pair.getValue());
+			pWriter.println(pair.getKey().toString().trim() + " ; " + pair.getValue().toString().trim());
 			// treee.add(pair.getKey() + ";\t" +pair.getValue());
 			it.remove();
 		}
 		pWriter.flush();
 		pWriter.close();
 		long stop = System.currentTimeMillis();
-		System.out
-				.println("Finished calculating the frequency count unique in " + ((stop - start) / 1000.0) + " seconds.");
+		System.out.println("Finished calculating the frequency count unique in " + ((stop - start) / 1000.0) + " seconds.");
 
 	}
 
@@ -786,52 +817,19 @@ public class WikipediaSAXParser {
 		String text = wikiText.replaceAll("&gt;", ">");
 		text = text.replaceAll("&lt;", "<");
 		text = text.replaceAll("&quot;", "\"");
-		text = text.replaceAll("&nbsp;", "");	
+		//text = text.replaceAll("&nbsp;", "");	
 		text = text.replaceAll("\"","").replaceAll("\'''","").replaceAll("\''","");
-		text = commentsCleanupPattern.matcher(text).replaceAll("");
-		text = translatedTitle.matcher(text).replaceAll("");
-		text = stylesPattern.matcher(text).replaceAll("");
-		text = stripCite(text);
-		//text = stripInfoBox(text);
-		//text = curlyCleanupPattern0.matcher(text).replaceAll("");
-		//text = curlyCleanupPattern1.matcher(text).replaceAll("");
-		text = htmlExtLinkPattern.matcher(text).replaceAll("");
-		//text = refCleanupPattern.matcher(text).replaceAll("");
-		text = refCleanupPattern1.matcher(text).replaceAll("");
-		//text = refCleanupPattern2.matcher(text).replaceAll("");
-			
+		//text = infoboxCleanupPattern.matcher(text).replaceAll("");
 		
-		//text = LANG_LINKS.matcher(text).replaceAll("");
-		//text = URL.matcher(text).replaceAll("");
-		//text = DOUBLE_CURLY.matcher(text).replaceAll("");
-		//text = HTML_TAG.matcher(text).replaceAll("");
-		//text = categoryPattern.matcher(text).replaceAll("");
-		//text = OtherPattern.matcher(text).replaceAll("");
-		//text = text.replaceAll("</?.*?>", "");
+		//text = stripCite(text);
 		
-		
-		
-		
-
-		// text = cleanupPattern0.matcher(text).replaceAll(" ");
-
-		// Matcher m = cleanupPattern1.matcher(text);
-		// StringBuffer sb = new StringBuffer();
-		// while (m.find()) {
-		// For example: transform match to upper case
-		// int i = m.group().lastIndexOf('|');
-		// String replacement;
-		// if (i > 0) {
-		// replacement = m.group(1).substring(i - 1);
-		// } else {
-		// replacement = m.group(1);
-		// }
-		// m.appendReplacement(sb, Matcher.quoteReplacement(replacement));
-		// }
-		// m.appendTail(sb);
-		// text = sb.toString();
-
-		text = text.replaceAll("'{2,}", "");
+        text = commentsCleanupPattern.matcher(text).replaceAll("");
+        text = stylesPattern.matcher(text).replaceAll("");
+        text = refCleanupPattern.matcher(text).replaceAll("");
+        text = text.replaceAll("</?.*?>", "");
+        text = curlyCleanupPattern0.matcher(text).replaceAll("");
+        text = curlyCleanupPattern1.matcher(text).replaceAll("");
+        //text = cleanupPattern0.matcher(text).replaceAll(" ");
 		return text.trim();
 	}
 
@@ -872,29 +870,30 @@ public class WikipediaSAXParser {
 	 * @param text
 	 * @return
 	 */
-	private static String stripCite(String text) {
-		String CITE_CONST_STR = "{{cite";
-		int startPos = text.indexOf(CITE_CONST_STR);
-		if (startPos < 0)
-			return text;
-		int bracketCount = 2;
-		int endPos = startPos + CITE_CONST_STR.length();
-		for (; endPos < text.length(); endPos++) {
-			switch (text.charAt(endPos)) {
-			case '}':
-				bracketCount--;
-				break;
-			case '{':
-				bracketCount++;
-				break;
-			default:
-			}
-			if (bracketCount == 0)
-				break;
-		}
-		text = text.substring(0, startPos) + text.substring(endPos+1);
-		return stripCite(text);
-	}
+    private static String stripCite(String text) {
+        String CITE_CONST_STR = "{{cite";
+        int startPos = text.indexOf(CITE_CONST_STR);
+        if (startPos < 0) return text;
+        int bracketCount = 2;
+        int endPos = startPos + CITE_CONST_STR.length();
+        for (; endPos < text.length(); endPos++) {
+            switch (text.charAt(endPos)) {
+                case '}':
+                    bracketCount--;
+                    break;
+                case '{':
+                    bracketCount++;
+                    break;
+                default:
+            }
+            if (bracketCount == 0) break;
+        }
+        text = text.substring(0, startPos - 1) + text.substring(endPos);
+        return stripCite(text);
+    }
+	
+	
+	
 
 	private static void help() {
 		HelpFormatter formater = new HelpFormatter();
