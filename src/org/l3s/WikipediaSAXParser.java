@@ -142,7 +142,7 @@ public class WikipediaSAXParser {
 		 //set = loadTitlesList(pageTitles);
 		 //} else {
 		writePageTitles(args[0]);
-		//System.exit(1);
+		System.exit(1);
 		// set = loadTitlesList(pageTitles);
 		// }
 
@@ -150,13 +150,6 @@ public class WikipediaSAXParser {
 		// if(!Files.exists(path)){
 		writeMentionEntity(args[0],	articlesMentionsANDLinks);
 		// }
-
-		// JSONArray jsonArray = new JSONArray();
-		// ObjectMapper jsonM = new ObjectMapper();
-		// String jsonFinal = jsonM.writeValueAsString(redirection);
-
-		//ObjectMapper jsonMapper = new ObjectMapper();
-		//String outputJSON = jsonMapper.writerWithDefaultPrettyPrinter().writeValueAsString(redirection);
 
 		// sorting first
 		//sortList("./resource/listOfMentionsAndEntities.txt","articlesMentionsANDLinks_SORTED.txt");
@@ -216,7 +209,6 @@ public class WikipediaSAXParser {
 				public void process(WikiPage page) {
 					String wikitext = page.getWikiText().trim();
 					String text = getPlainText(wikitext);
-					System.out.println(text);
 					String title = page.getTitle().trim();
 					// As I am not interested in REDIRECT pages I am counting them but skipping to parse for mention/entity
 					// Even though I am adding the page title and the disambiguation to a TreeSet for later usage.
@@ -224,60 +216,63 @@ public class WikipediaSAXParser {
 					if(title.contains("Category:") || title.contains("Help:") || title.contains("Image:") ||title.contains("User:") || title.contains("MediaWiki:") || title.contains("Wikipedia:") || title.contains("Portal:") || title.contains("Template:") || title.contains("File:") ) {
 						//DO NOTHING if it is a Special Page ! Special pages are pages such as Help: , Wikipedia:, User: pages
 						}else{
-						//if(mRedirect.find()) {
-						//DO NOTHING if it is redirect page !			
-						//}else {
-							if ((text != null) && (!text.isEmpty()) && (text != "")) {
-								Matcher matcher = mentionEntityPattern.matcher(text);
-								while (matcher.find()) {									
-									String[] temp = matcher.group(1).split("\\|");
-									if (temp == null || temp.length == 0) {
-										continue;
-									}
-									String mention = null;
-									String entitylink = null;									
-									if (temp.length > 1) {
-										entitylink = temp[0].trim();
-										mention = temp[1].trim();
-									} else {
-										entitylink = temp[0].trim();
-										mention = temp[0].trim();
-									}
+							
+							if(mRedirect.find()) {
+								//DO NOTHING if it is redirect page !	
+								//System.out.println("REDIR");
+								
+							}else{
+								if ((text != null) && (!text.isEmpty()) && (text != "")) {
+									Matcher matcher = mentionEntityPattern.matcher(text);
+									while (matcher.find()) {									
+										String[] temp = matcher.group(1).split("\\|");
+										if (temp == null || temp.length == 0) {
+											continue;
+										}
+										String mention = null;
+										String entitylink = null;									
+										if (temp.length > 1) {
+											entitylink = temp[0].trim();
+											mention = temp[1].trim();
+										} else {
+											entitylink = temp[0].trim();
+											mention = temp[0].trim();
+										}	
 									
-									if (mention.length() == 0 || (mention == "")|| (entitylink.length() == 0)|| (entitylink == "")) {
-										continue;
-									}
-									if (mention.contains(":") || (entitylink.contains(":"))) { // ignoring rubbish such as Image:Kropotkin // Nadar.jpg]
-										continue;
-									}
-									//MENTION_ENTITY++;
-									//if(allPagesTitlesList.contains(entitylink)){
-									//if(pTitleList.contains(entitylink)){
-									//IN_TITLES_LIST++;
-									String mentionEntity = mention.trim() + " ; "+ entitylink.trim();
-									writer.println(mentionEntity);
-									//continue;
-									//}else{
+										if (mention.length() == 0 || (mention == "")|| (entitylink.length() == 0)|| (entitylink == "")) {
+											continue;
+										}
+										if (mention.contains(":") || (entitylink.contains(":"))) { // ignoring rubbish such as Image:Kropotkin // Nadar.jpg]
+											continue;
+										}
+										//MENTION_ENTITY++;
+										//if(allPagesTitlesList.contains(entitylink)){
+										//if(pTitleList.contains(entitylink)){
+										//IN_TITLES_LIST++;
+										String mentionEntity = mention.trim() + " ; "+ entitylink.trim();
+										writer.println(mentionEntity);
+										//continue;
+										//}else{
 										//entitylink is not in titleList
-									//	notinlistwriter.println(entitylink);
-									//}
-										
+										//	notinlistwriter.println(entitylink);
+										//}
+											
 										//else if (pageTitlesMap.get(entitylink)!=null) {
-									//		IN_MAP_KEYS++;
-									//		String mentionEntity = mention + ";"+ entitylink;
-									//		writer.println(mentionEntity);
-									//		continue;
-									//		}else {
-									//			String s = containsValue(pageTitlesMap,entitylink);
-									//			if(s!=null){
-									//				IN_MAP_VALUES++;
-									//				String mentionEntity = mention + ";"+ s;
-									//				writer.println(mentionEntity);
-									//				continue;
-									//			}
-									//		}
+										//		IN_MAP_KEYS++;
+										//		String mentionEntity = mention + ";"+ entitylink;
+										//		writer.println(mentionEntity);
+										//		continue;
+										//		}else {
+										//			String s = containsValue(pageTitlesMap,entitylink);
+										//			if(s!=null){
+										//				IN_MAP_VALUES++;
+										//				String mentionEntity = mention + ";"+ s;
+										//				writer.println(mentionEntity);
+										//				continue;
+										//			}
+										//		}
 									}
-							//}
+							}
 						}
 				}
 					}
@@ -518,11 +513,12 @@ public class WikipediaSAXParser {
 					String pTitle = page.getTitle().trim();
 					String wikitext = page.getWikiText().trim();
 					Matcher mRedirect = redirectPattern.matcher(wikitext);
-					if(pTitle.contains("Category:") || pTitle.contains("Help:") || pTitle.contains("Image:") ||
-							pTitle.contains("User:") || pTitle.contains("MediaWiki:") || pTitle.contains("Wikipedia:") ||
-							pTitle.contains("Portal:") || pTitle.contains("Template:") || pTitle.contains("File:")){
+					if(pTitle.contains("Category:") || pTitle.contains("Help:") || pTitle.contains("Image:") ||	pTitle.contains("User:") || pTitle.contains("MediaWiki:") || pTitle.contains("Wikipedia:") || pTitle.contains("Portal:") || pTitle.contains("Template:") || pTitle.contains("File:")){
 						SPECIAL_PAGES++;
 						specialPagesTitlesList.add(pTitle);
+					}
+					if (pTitle.length() == 0 || (pTitle == "")) {
+						//empty title //// useless
 					}else{
 						allPagesTitlesList.add(pTitle);
 						TOTAL_PAGE_TITLE++;
@@ -531,16 +527,21 @@ public class WikipediaSAXParser {
 							 REDIRECTION++;
 /********/
 							 Matcher matcher = mentionEntityPattern.matcher(wikitext);	
-							 if(matcher.find()){
-								 String redirectedTitle = matcher.group(1);
-								 List<String> mappedList = pageTitlesMap.get(redirectedTitle); 							
-								 if(mappedList == null){ 	
-									 mappedList = new ArrayList<String>();
-									 mappedList.add(pTitle);
-									 pageTitlesMap.put(redirectedTitle,mappedList);
+							 while(matcher.find()){
+								 String redirectedTitle = matcher.group(1).trim();
+								 if(redirectedTitle.contains("Category:")){
+									 continue;
+									 
 								 }else{
-									 mappedList.add(pTitle);
-									 pageTitlesMap.put(redirectedTitle,mappedList);
+									 List<String> mappedList = pageTitlesMap.get(redirectedTitle); 							
+									 if(mappedList == null){ 	
+										 mappedList = new LinkedList<String>();
+										 mappedList.add(pTitle);
+										 pageTitlesMap.put(redirectedTitle,mappedList);
+									 }else{
+										 mappedList.add(pTitle);
+										 pageTitlesMap.put(redirectedTitle,mappedList);
+									 }
 								 }
 							 }
 /***********/
@@ -603,6 +604,17 @@ public class WikipediaSAXParser {
 		//***************************************************************************************//
 		long stop = System.currentTimeMillis();
 		
+		
+		ObjectMapper jsonMapper = new ObjectMapper();
+		try {
+			String outputJSON = jsonMapper.writerWithDefaultPrettyPrinter().writeValueAsString(pageTitlesMap);
+			PrintWriter redirectPagesTitlesMapWriter = new PrintWriter("pagesTitles_REDIRECT.json", "UTF-8");
+			redirectPagesTitlesMapWriter.println(outputJSON);
+			redirectPagesTitlesMapWriter.flush();
+			redirectPagesTitlesMapWriter.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 		
 		allPagesTitlesList.clear();
 		specialPagesTitlesList.clear();
@@ -819,17 +831,13 @@ public class WikipediaSAXParser {
 		text = text.replaceAll("&quot;", "\"");
 		//text = text.replaceAll("&nbsp;", "");	
 		text = text.replaceAll("\"","").replaceAll("\'''","").replaceAll("\''","");
-		//text = infoboxCleanupPattern.matcher(text).replaceAll("");
-		
-		//text = stripCite(text);
-		
         text = commentsCleanupPattern.matcher(text).replaceAll("");
         text = stylesPattern.matcher(text).replaceAll("");
         text = refCleanupPattern.matcher(text).replaceAll("");
         text = text.replaceAll("</?.*?>", "");
-        text = curlyCleanupPattern0.matcher(text).replaceAll("");
-        text = curlyCleanupPattern1.matcher(text).replaceAll("");
-        //text = cleanupPattern0.matcher(text).replaceAll(" ");
+       // text = curlyCleanupPattern0.matcher(text).replaceAll("");
+       // text = curlyCleanupPattern1.matcher(text).replaceAll("");
+       
 		return text.trim();
 	}
 
