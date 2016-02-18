@@ -97,6 +97,7 @@ public class WikipediaSAXParser {
 	//				   TOTAL_PAGE_TITLE = REDIRECT_PAGE_TITLE + PAGE_TITLE
 	private static int REDIRECTION = 0;				         //This is the total number of #REDIRECT page titles.
 	private static int SPECIAL_PAGES =0;
+	private static int EMPTY_TITLE_PAGES;
 	private static int IN_TITLES_LIST = 0;
 	private static int IN_MAP_KEYS = 0;
 	private static int IN_MAP_VALUES= 0;
@@ -142,7 +143,7 @@ public class WikipediaSAXParser {
 		 //set = loadTitlesList(pageTitles);
 		 //} else {
 		writePageTitles(args[0]);
-		System.exit(1);
+		//System.exit(1);
 		// set = loadTitlesList(pageTitles);
 		// }
 
@@ -210,16 +211,19 @@ public class WikipediaSAXParser {
 					String wikitext = page.getWikiText().trim();
 					String text = getPlainText(wikitext);
 					String title = page.getTitle().trim();
-					// As I am not interested in REDIRECT pages I am counting them but skipping to parse for mention/entity
-					// Even though I am adding the page title and the disambiguation to a TreeSet for later usage.
 					Matcher mRedirect = redirectPattern.matcher(wikitext);
-					if(title.contains("Category:") || title.contains("Help:") || title.contains("Image:") ||title.contains("User:") || title.contains("MediaWiki:") || title.contains("Wikipedia:") || title.contains("Portal:") || title.contains("Template:") || title.contains("File:") ) {
+					if(title.contains("Category:") || title.contains("Help:") || title.contains("Image:") ||title.contains("User:") || title.contains("MediaWiki:") || title.contains("Wikipedia:") || title.contains("Portal:") || title.contains("Template:") || title.contains("File:")
+							|| title.length() == 0 || (title == " ")  || title.contains("Book:") || title.contains("Draft:") || title.contains("Module:") || title.contains("TimedText:") || title.contains("Topic:")) {
 						//DO NOTHING if it is a Special Page ! Special pages are pages such as Help: , Wikipedia:, User: pages
+						//DO NOTHING if it is an empty page title.
+
+						//KATJA asked to run two experiments
+						// 1.counting the mention/entity from disambiguation pages (i.e. Car (Disambiguation)
+						// 2.NOT counting the mention/entity from  disambiguation pages
 						}else{
-							
+
 							if(mRedirect.find()) {
 								//DO NOTHING if it is redirect page !	
-								//System.out.println("REDIR");
 								
 							}else{
 								if ((text != null) && (!text.isEmpty()) && (text != "")) {
@@ -247,30 +251,28 @@ public class WikipediaSAXParser {
 										}
 										//MENTION_ENTITY++;
 										//if(allPagesTitlesList.contains(entitylink)){
-										//if(pTitleList.contains(entitylink)){
-										//IN_TITLES_LIST++;
-										String mentionEntity = mention.trim() + " ; "+ entitylink.trim();
-										writer.println(mentionEntity);
-										//continue;
-										//}else{
-										//entitylink is not in titleList
-										//	notinlistwriter.println(entitylink);
-										//}
-											
-										//else if (pageTitlesMap.get(entitylink)!=null) {
+										if(pagesTitlesList.contains(entitylink)){
+											//IN_TITLES_LIST++;
+											String mentionEntity = mention.trim() + " ; "+ entitylink.trim();
+											writer.println(mentionEntity);
+											//continue;
+											//}else{
+												//entitylink is not in titleList
+												//notinlistwriter.println(entitylink);
+										}else{ //if (pageTitlesMap.get(entitylink)!=null) {
 										//		IN_MAP_KEYS++;
 										//		String mentionEntity = mention + ";"+ entitylink;
 										//		writer.println(mentionEntity);
 										//		continue;
 										//		}else {
-										//			String s = containsValue(pageTitlesMap,entitylink);
-										//			if(s!=null){
+													String keyMapping = containsValue(pageTitlesMap,entitylink);
+													if(keyMapping != null){
 										//				IN_MAP_VALUES++;
-										//				String mentionEntity = mention + ";"+ s;
-										//				writer.println(mentionEntity);
+														String mentionEntity = mention + " ; "+ keyMapping;
+														writer.println(mentionEntity);
 										//				continue;
-										//			}
-										//		}
+													}
+										}
 									}
 							}
 						}
@@ -509,33 +511,36 @@ public class WikipediaSAXParser {
 		}
 		try {
 			wxsp.setPageCallback(new PageCallbackHandler() {
+
 				public void process(WikiPage page) {
 					String pTitle = page.getTitle().trim();
 					String wikitext = page.getWikiText().trim();
 					Matcher mRedirect = redirectPattern.matcher(wikitext);
-					if(pTitle.contains("Category:") || pTitle.contains("Help:") || pTitle.contains("Image:") ||	pTitle.contains("User:") || pTitle.contains("MediaWiki:") || pTitle.contains("Wikipedia:") || pTitle.contains("Portal:") || pTitle.contains("Template:") || pTitle.contains("File:")){
+					if(pTitle.contains("Category:") || pTitle.contains("Help:") || pTitle.contains("Image:") ||	pTitle.contains("User:") || pTitle.contains("MediaWiki:") || pTitle.contains("Wikipedia:") || pTitle.contains("Portal:") || pTitle.contains("Template:") || pTitle.contains("File:") ||
+							pTitle.contains("Book:") || pTitle.contains("Draft:") || pTitle.contains("Module:") || pTitle.contains("TimedText:") || pTitle.contains("Topic:") ){
 						SPECIAL_PAGES++;
 						specialPagesTitlesList.add(pTitle);
-					}
-					if (pTitle.length() == 0 || (pTitle == "")) {
-						//empty title //// useless
 					}else{
-						allPagesTitlesList.add(pTitle);
+						allPagesTitlesList.add(pTitle); // allPagesTitlesList excludes and Special pages
 						TOTAL_PAGE_TITLE++;
-						if (mRedirect.find()) {					
-							 redirectPagesTitlesList.add(pTitle);
-							 REDIRECTION++;
+					if (pTitle.length() == 0 || (pTitle == " ")) {
+						EMPTY_TITLE_PAGES++;
+						//empty title //// useless
+						}else{
+							if (mRedirect.find()) {
+								redirectPagesTitlesList.add(pTitle);
+								REDIRECTION++;
 /********/
 							 Matcher matcher = mentionEntityPattern.matcher(wikitext);	
 							 while(matcher.find()){
 								 String redirectedTitle = matcher.group(1).trim();
 								 if(redirectedTitle.contains("Category:")){
 									 continue;
-									 
+
 								 }else{
 									 List<String> mappedList = pageTitlesMap.get(redirectedTitle); 							
 									 if(mappedList == null){ 	
-										 mappedList = new LinkedList<String>();
+										 mappedList = new ArrayList<String>();
 										 mappedList.add(pTitle);
 										 pageTitlesMap.put(redirectedTitle,mappedList);
 									 }else{
@@ -549,7 +554,7 @@ public class WikipediaSAXParser {
 								NOREDIRECTION++;
 								pagesTitlesList.add(pTitle);
 							}
-						
+						}
 					}
 				}
 			});
@@ -619,14 +624,14 @@ public class WikipediaSAXParser {
 		allPagesTitlesList.clear();
 		specialPagesTitlesList.clear();
 		redirectPagesTitlesList.clear();
-		pagesTitlesList.clear();
 		System.gc();
 		
 		System.out.println("Finished writing page titles files in "+ ((stop - start) / 1000.0) + " seconds.");
-		System.out.println("Number of SPECIAL pages : "+SPECIAL_PAGES);
-		System.out.println("Number of #REDIRECTION pages : "+REDIRECTION);
-		System.out.println("Number of pages without #REDIRECTION pages :" +NOREDIRECTION);
-		System.out.println("Total number of pages : "+TOTAL_PAGE_TITLE);
+		System.out.println("Number of SPECIAL pages titles  : "+SPECIAL_PAGES);
+		System.out.println("Number of #REDIRECTION pages titles: "+REDIRECTION);
+		System.out.println("Number of empty pages titles : "+EMPTY_TITLE_PAGES);
+		System.out.println("Number of pages titles without #REDIRECTION :" +NOREDIRECTION);
+		System.out.println("Total number of pages  <<<< Excluding SPECIAL pages.>>>> :" +TOTAL_PAGE_TITLE);
 	}
 
 	/**
