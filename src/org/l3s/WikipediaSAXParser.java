@@ -27,6 +27,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -45,8 +46,12 @@ import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
+import org.apache.jena.sparql.pfunction.library.splitIRI;
 import org.codehaus.jackson.map.ObjectMapper;
 import org.json.simple.JSONArray;
+import org.json.simple.JSONObject;
+import org.json.simple.JSONValue;
+import org.json.simple.parser.JSONParser;
 import org.l3s.dbpedia.DBPediaType;
 import org.l3s.test.Cli;
 
@@ -87,7 +92,7 @@ public class WikipediaSAXParser {
 	private static final Pattern DOUBLE_CURLY = Pattern.compile("\\{\\{.*?\\}\\}");
 	private static final Pattern HTML_TAG = Pattern.compile("<[^!][^>]*>");
 	private static Pattern namePattern = Pattern.compile("^[a-zA-Z_  -]*",Pattern.MULTILINE);
-	private static String pageTitles = "pageTitles.txt";
+	private static String pageTitles = "pagesTitles.txt";
 	private static String articlesMentionsANDLinks = "articlesMentionsANDLinks.txt";
 	private static PrintWriter writer = null;// new
 												// PrintWriter(articlesMentionsANDLinks,"UTF-8");
@@ -106,74 +111,176 @@ public class WikipediaSAXParser {
 	private int LIST_PAGE = 0;
 	private String[] args = null;
 	private static Options options = new Options();
-	private static Map<String, List<String>> pageTitlesMap = new TreeMap<String, List<String>>();
-
+	private static Map<String, String> pageTitlesMap = new TreeMap<String,String>();
+	private static Set<String> titlesSet = new TreeSet<String>(String.CASE_INSENSITIVE_ORDER);
 	private static List<String> pagesTitlesList = new LinkedList<String>(); 		//This is a list of pages titles without special pages (i.e. Category:, File:, Image:, etc) and without #REDIRECT
 	private static List<String> allPagesTitlesList = new LinkedList<String>();   	//This is  a list with all the pages titles.
 	private static List<String> specialPagesTitlesList = new LinkedList<String>();  //This is  a list with ONLY the SPECIAL pages titles. (i.e. Category:, File:, Image:, etc)
 	private static List<String> redirectPagesTitlesList = new LinkedList<String>(); //This is  a list with ONLY the pages titles with redirection. (i.e. #REDIRECT)
+
 	/**
+	 * @throws org.json.simple.parser.ParseException
 	 * @throws ParseException
 	 * @param args
 	 * @throws
 	 */
 	@SuppressWarnings("resource")
-	public static void main(String[] args) throws IOException, ParseException {
+	public static void main(String[] args) throws IOException, ParseException, org.json.simple.parser.ParseException {
+		/**
+		 *  * Initially I want to check if the page titles file exists. If it does not exist in the current directory. I will create it.
+		 */
+		File pgFile = new File(pageTitles);
+		if (pgFile.exists()) {
+			titlesSet = loadTitlesList(pageTitles);
+		 } else {
+			writePageTitles(args[0]);
+			titlesSet = loadTitlesList(pageTitles);
+		 }
+		/**
+		 *  *  I create the mention/entity file without checking whether the entity has a proper entity page.
+		 */
+		writeMentionEntity_NO_Checking(args[0],	articlesMentionsANDLinks);
+		/**
+		 *  *  Now I want to check if the page titles redirection map file exists. If it does not exist in the current directory. I will create it.
+		 */
+		File mpFile = new File("pagesTitles_REDIRECT.json");
+		//Map<String,String> redirMap = new TreeMap<>();
+		if (mpFile.exists()) {
+			pageTitlesMap = loadTitlesRedirectMap("pagesTitles_REDIRECT.json");
+		}else{
+			writePageTitles(args[0]);
+			pageTitlesMap = loadTitlesRedirectMap("pagesTitles_REDIRECT.json");
+			}
+		/**
+		 * * Then I check my mention/entity list against the page titles list and the page titles redirection map.
+		 */
+		checkInTitlesList(articlesMentionsANDLinks,titlesSet);
+		checkInTitlesMap(articlesMentionsANDLinks, pageTitlesMap);
 
-		// CommandLineParser parser = new DefaultParser();
-		// CommandLine cmd = parser.parse( options, args);
+		/**
+		 * * Merging and sorting the temp files created in the previous step.
+		 */
+		mergeFilesAndSort("mentionEntity.temp1","mentionEntity.temp2","articlesMentionsANDLinks_SORTED.txt");
 
-		// if(cmd.hasOption("p")) {
-		// help();
-		// print the date and time
-		// }
-		// if(cmd.hasOption("a")){
-		// System.out.println("Run all the pipeline");
-		// }
-		// new Cli(args).parse();
-
-		// if (args.length <1) {
-		// System.out.println("Usage: Parser <Wikipedia-XML-FILE> <DBPedia-FILE>");
-		// System.exit(-1);
-		// }
-
-		//File ff = new File(pageTitles);
-		//// Basic verification whether the file with all the page titles exists
-		//if (ff.exists()) {
-		 //set = loadTitlesList(pageTitles);
-		 //} else {
-		writePageTitles(args[0]);
-		//System.exit(1);
-		// set = loadTitlesList(pageTitles);
-		// }
-
-		// Path path = Paths.get(articlesMentionsANDLinks);
-		// if(!Files.exists(path)){
-		writeMentionEntity(args[0],	articlesMentionsANDLinks);
-		// }
-
-		// sorting first
-		//sortList("./resource/listOfMentionsAndEntities.txt","articlesMentionsANDLinks_SORTED.txt");
-		sortList(articlesMentionsANDLinks,"articlesMentionsANDLinks_SORTED.txt");
-
-		// frequency count
+		/**
+		 * * Counting the frequency for mention/entity pairs.
+		 */
 		frequencyCount("articlesMentionsANDLinks_SORTED.txt","articlesMentionsANDLinks_SORTED_Freq.txt");
 
-		// frequency count without duplicates
+		/**
+		 * * Counting the frequency for mention/entity pairs WITHOUT duplicates.
+		 */
 		frequencyCountUnique("articlesMentionsANDLinks_SORTED.txt","articlesMentionsANDLinks_SORTED_Freq_Uniq.txt");
 
-		// prior probability
+		/**
+		 * * Finally calculating PRIOR probability for mention/entity pairs.
+		 */
 		calculatePRIOR("articlesMentionsANDLinks_SORTED_Freq.txt","articlesMentionsANDLinks_PRIOR.txt");
 
-	
+	}
+/********************************** END OF MAIN ************************************************************/
 
-	
+	/***
+	 *
+	 * @param mentionEntityFile
+	 * @param titles
+	 * @throws IOException
+	 */
+	public static void checkInTitlesList(String mentionEntityFile,Set<String> titles) throws IOException{
+		System.out.println("Checking if entity matches the entity page titles list ...");
+		int total = 0;
+		int match = 0;
+		BufferedReader bffReader = new BufferedReader(new FileReader(mentionEntityFile));
+		String inLine = null;
+		PrintWriter ptemp1File = new PrintWriter(new File("mentionEntity.temp1"));
+		while ((inLine = bffReader.readLine()) != null) {
+			total+=1;
+				String[] aM = inLine.split(" ; ");
+				if(titles.contains(aM[1])){
+					ptemp1File.println(inLine);
+					match+=1;
+				}
+		}
+		bffReader.close();
+		ptemp1File.flush();
+		ptemp1File.close();
+		System.out.println("Total titles : "+total);
+		System.out.println("Number of matches : "+match);
+		System.out.println("Number of non matches : "+(total-match));
+		System.out.println("Done.");
+	}
 
+	/***
+	 *	Utility function to check whether an entity is in the map file and solving the redirection.
+	 *
+	 * @param mentionEntityFile
+	 * @param treemap
+	 * @throws IOException
+	 */
+	public static void checkInTitlesMap(String mentionEntityFile, Map<String,String> treemap) throws IOException{
+		System.out.println("Checking if entity matches the entity page redirection map ...");
+		int total = 0;
+		int match = 0;
+		BufferedReader bffReader = new BufferedReader(new FileReader(mentionEntityFile));
+		PrintWriter ptemp2File = new PrintWriter(new File("mentionEntity.temp2"));
+		String inLine = null;
+		while ((inLine = bffReader.readLine()) != null) {
+			total+=1;
+			String[] aM = inLine.split(" ; ");
+			if(treemap.containsKey(aM[1])){
+				if( (treemap.get(aM[1]) == " ") || (treemap.get(aM[1]).trim().length() == 0) ){
+					continue;
+				}else{
+					ptemp2File.println(aM[0]+" ; "+treemap.get(aM[1]));
+					match+=1;
+				}
+			}
+		}
+		bffReader.close();
+		ptemp2File.flush();
+		ptemp2File.close();
+		System.out.println("Total titles : "+total);
+		System.out.println("Number of matches : "+match);
+		System.out.println("Number of non matches : "+(total-match));
+		System.out.println("Done.");
+	}
+
+	/***
+	 *  A function to merge to input files, sort the lines and write to output file
+	 *
+	 * @param inputFile1
+	 * @param inputFile2
+	 * @param outputFile
+	 * @throws IOException
+	 */
+	public static void mergeFilesAndSort(String inputFile1, String inputFile2, String outputFile) throws IOException{
+		ArrayList<String> finalList = new ArrayList<String>();
+		BufferedReader bffReader = new BufferedReader(new FileReader(inputFile1));
+		String inLine = null;
+		while ((inLine = bffReader.readLine()) != null) {
+			finalList.add(inLine);
+		}
+		bffReader.close();
+		bffReader = new BufferedReader(new FileReader(inputFile2));
+		while ((inLine = bffReader.readLine()) != null) {
+			finalList.add(inLine);
+		}
+		File f = new File(inputFile1);
+		f.delete();
+		f = new File(inputFile2);
+		f.delete();
+		Collections.sort(finalList);
+		PrintWriter outputFileWriter = new PrintWriter(new File(outputFile));
+		for(String str : finalList){
+			outputFileWriter.println(str);
+		}
+		outputFileWriter.flush();
+		outputFileWriter.close();
 	}
 
 	/**
 	 *  Function to compress input file using Bzip2
-	 *  
+	 *
 	 * @param inputFile
 	 * @throws IOException
 	 */
@@ -260,18 +367,11 @@ public class WikipediaSAXParser {
 												//entitylink is not in titleList
 												//notinlistwriter.println(entitylink);
 										}else{ //if (pageTitlesMap.get(entitylink)!=null) {
-										//		IN_MAP_KEYS++;
-										//		String mentionEntity = mention + ";"+ entitylink;
-										//		writer.println(mentionEntity);
-										//		continue;
-										//		}else {
-													String keyMapping = containsValue(pageTitlesMap,entitylink);
-													if(keyMapping != null){
-										//				IN_MAP_VALUES++;
-														String mentionEntity = mention + " ; "+ keyMapping;
-														writer.println(mentionEntity);
-										//				continue;
-													}
+												String keyMapping = pageTitlesMap.get(entitylink);
+												if(keyMapping != null){
+													String mentionEntity = mention + " ; "+ keyMapping;
+													writer.println(mentionEntity);
+												}
 										}
 									}
 							}
@@ -285,8 +385,6 @@ public class WikipediaSAXParser {
 			}
 			writer.flush();
 			writer.close();
-			//notinlistwriter.flush();
-			//notinlistwriter.flush();
 			long stop = System.currentTimeMillis();
 			System.out.println("Finished collecting articles Mentions and Entities Links in "+ ((stop - start) / 1000.0) + " seconds.");
 			System.out.println("Number of mention/entities pairs : "+MENTION_ENTITY);
@@ -309,16 +407,8 @@ public class WikipediaSAXParser {
 				}
 			}
 			return null;
-				
-		// for (Entry<K,V> e = getFirstEntry(); e != null; e = successor(e))
-	    //       if (valEquals(value, e.value))
-	    //            return true;
-	    //    return false;
 	 }
-	
-	
-	
-	
+
 	/**
 	 * Utility function to calculate the prior probability of mentions, entity
 	 * pairs
@@ -503,6 +593,7 @@ public class WikipediaSAXParser {
 	private static void writePageTitles(String XMLFile)	throws FileNotFoundException, UnsupportedEncodingException {
 		long start = System.currentTimeMillis();
 		WikiXMLParser wxsp = null;
+		JSONArray Jarray = new JSONArray();
 		try {
 			wxsp = WikiXMLParserFactory.getSAXParser(XMLFile);
 		} catch (MalformedURLException e) {
@@ -512,6 +603,7 @@ public class WikipediaSAXParser {
 		try {
 			wxsp.setPageCallback(new PageCallbackHandler() {
 
+				@SuppressWarnings("unchecked")
 				public void process(WikiPage page) {
 					String pTitle = page.getTitle().trim();
 					String wikitext = page.getWikiText().trim();
@@ -538,15 +630,11 @@ public class WikipediaSAXParser {
 									 continue;
 
 								 }else{
-									 List<String> mappedList = pageTitlesMap.get(redirectedTitle); 							
-									 if(mappedList == null){ 	
-										 mappedList = new ArrayList<String>();
-										 mappedList.add(pTitle);
-										 pageTitlesMap.put(redirectedTitle,mappedList);
-									 }else{
-										 mappedList.add(pTitle);
-										 pageTitlesMap.put(redirectedTitle,mappedList);
-									 }
+									 pageTitlesMap.put(pTitle, redirectedTitle);
+									 JSONObject jobj = new JSONObject();
+							         jobj.put("redirect", redirectedTitle);
+									 jobj.put("title", pTitle);
+						             Jarray.add(jobj);
 								 }
 							 }
 /***********/
@@ -612,7 +700,8 @@ public class WikipediaSAXParser {
 		
 		ObjectMapper jsonMapper = new ObjectMapper();
 		try {
-			String outputJSON = jsonMapper.writerWithDefaultPrettyPrinter().writeValueAsString(pageTitlesMap);
+			//String outputJSON = jsonMapper.writerWithDefaultPrettyPrinter().writeValueAsString(pageTitlesMap);
+			String outputJSON = jsonMapper.writerWithDefaultPrettyPrinter().writeValueAsString(Jarray);
 			PrintWriter redirectPagesTitlesMapWriter = new PrintWriter("pagesTitles_REDIRECT.json", "UTF-8");
 			redirectPagesTitlesMapWriter.println(outputJSON);
 			redirectPagesTitlesMapWriter.flush();
@@ -655,6 +744,29 @@ public class WikipediaSAXParser {
 	}
 
 	/**
+	 *
+	 * @param titlesMapJson
+	 * @return
+	 * @throws org.json.simple.parser.ParseException
+	 * @throws IOException
+	 */
+	public static Map<String,String> loadTitlesRedirectMap(String titlesMapJson) throws org.json.simple.parser.ParseException, IOException{
+		Map<String, String> TitlesMap = new TreeMap<String,String>();
+		FileReader reader = new FileReader(titlesMapJson);
+		JSONParser parser = new JSONParser();
+		Object obj = parser.parse(reader);
+		JSONArray array = (JSONArray)obj;
+		int jsonSize =  array.size();
+		for(int i=0; i< jsonSize; i++){
+			JSONObject jobject = (JSONObject)array.get(i);
+			String pageTitle = (String) jobject.get("title");
+			String redirectPage = (String) jobject.get("redirect");
+			TitlesMap.put(pageTitle, redirectPage);
+        }
+		return TitlesMap;
+	}
+
+	/**
 	 * Calculate the frequency distribution given the original file with the
 	 * frequency count The frequency distribution show a frequency distribution
 	 * of each mention entity taking into consideration the total amount of
@@ -694,7 +806,7 @@ public class WikipediaSAXParser {
 		PrintWriter pWriter = new PrintWriter(outputFile, "UTF-8");
 		String inpLine = null;
 		while ((inpLine = bffReader.readLine()) != null) {
-			String[] words = inpLine.split(";");
+			String[] words = inpLine.split(" ; ");
 			if (words != null) {
 				String mention = null;
 				String entity = null;
@@ -795,6 +907,7 @@ public class WikipediaSAXParser {
 		while ((inpLine = bffReader.readLine()) != null) {
 			String[] words = inpLine.split(" ; ");
 			if (words.length >= 1) {
+				System.out.println(words[0].trim() + " ; " + words[1].trim());
 				String key_value = words[0].trim() + " ; " + words[1].trim();
 				if ((!key_value.isEmpty()) && (key_value != null) && (key_value != "")) {
 					Integer f = frequency.get(key_value);
@@ -912,6 +1025,77 @@ public class WikipediaSAXParser {
 		HelpFormatter formater = new HelpFormatter();
 		formater.printHelp("Main", options);
 		System.exit(0);
+	}
+
+
+	/***
+	 * 	This utility function is meant to dump all mention entity pairs without checking if the entity is in the pages titles list or in the redirection map.
+	 *  It writes the a big file with all the mention/entity pairs. (Unsorted)
+	 *
+	 * @param inputFile
+	 * @param outputFile
+	 * @throws FileNotFoundException
+	 * @throws UnsupportedEncodingException
+	 */
+	public static void writeMentionEntity_NO_Checking(String inputFile, String outputFile) throws FileNotFoundException, UnsupportedEncodingException {
+		writer = new PrintWriter(outputFile, "UTF-8");
+		WikiXMLParser wxsp = null;
+		try {
+			wxsp = WikiXMLParserFactory.getSAXParser(inputFile);
+		} catch (MalformedURLException e) {
+			e.printStackTrace();
+			return;
+		}
+		try {
+			wxsp.setPageCallback(new PageCallbackHandler() {
+				public void process(WikiPage page) {
+					String wikitext = page.getWikiText().trim();
+					String text = getPlainText(wikitext);
+					String title = page.getTitle().trim();
+					if(title.contains("Category:") || title.contains("Help:") || title.contains("Image:") ||title.contains("User:") || title.contains("MediaWiki:") || title.contains("Wikipedia:") || title.contains("Portal:") || title.contains("Template:") || title.contains("File:")
+							|| title.length() == 0 || (title == " ")  || title.contains("Book:") || title.contains("Draft:") || title.contains("Module:") || title.contains("TimedText:") || title.contains("Topic:")) {
+						//DO NOTHING if it is a Special Page ! Special pages are pages such as Help: , Wikipedia:, User: pages
+						//DO NOTHING if it is an empty page title.
+							}else{
+								Matcher mRedirect = redirectPattern.matcher(wikitext);
+								if(mRedirect.find()) {
+									//DO NOTHING if it is redirect page !
+								}else{
+								if ((text != null) && (!text.isEmpty()) && (text != "")) {
+									Matcher matcher = mentionEntityPattern.matcher(text);
+									while (matcher.find()) {
+										String[] temp = matcher.group(1).split("\\|");
+										if (temp == null || temp.length == 0) {
+											continue;
+										}
+										String mention = null;
+										String entitylink = null;
+										if (temp.length > 1) {
+											entitylink = temp[0].trim();
+											mention = temp[1].trim();
+										} else {
+											entitylink = temp[0].trim();
+											mention = temp[0].trim();
+										}
+										if (mention.length() == 0 || (mention == "")|| (entitylink.length() == 0)|| (entitylink == "")) {
+											continue;
+										}
+										if (mention.contains(":") || (entitylink.contains(":"))) { // ignoring rubbish such as Image:Kropotkin // Nadar.jpg]
+											continue;
+										}
+											String mentionEntity = mention.trim() + " ; "+ entitylink.trim();
+											writer.println(mentionEntity);
+							}
+						}
+				}
+					}}
+				});
+				wxsp.parse();
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+			writer.flush();
+			writer.close();
 	}
 
 }
