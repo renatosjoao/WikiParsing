@@ -112,6 +112,7 @@ public class WikipediaSAXParser {
 	private String[] args = null;
 	private static Options options = new Options();
 	private static Map<String, String> pageTitlesMap = new TreeMap<String,String>();
+	private static Map<String,Integer> duplicatePageTitle = new TreeMap<String, Integer>();
 	private static Set<String> titlesSet = new TreeSet<String>(String.CASE_INSENSITIVE_ORDER);
 	private static List<String> pagesTitlesList = new LinkedList<String>(); 		//This is a list of pages titles without special pages (i.e. Category:, File:, Image:, etc) and without #REDIRECT
 	private static List<String> allPagesTitlesList = new LinkedList<String>();   	//This is  a list with all the pages titles.
@@ -613,8 +614,17 @@ public class WikipediaSAXParser {
 						SPECIAL_PAGES++;
 						specialPagesTitlesList.add(pTitle);
 					}else{
+						if(allPagesTitlesList.contains(pTitle)){
+							Integer count = duplicatePageTitle.get(pTitle);
+							if (count == null) {
+								count = 1;
+							}
+							duplicatePageTitle.put(pTitle, count+1);
+						}
+
 						allPagesTitlesList.add(pTitle); // allPagesTitlesList excludes and Special pages
 						TOTAL_PAGE_TITLE++;
+
 					if (pTitle.length() == 0 || (pTitle == " ")) {
 						EMPTY_TITLE_PAGES++;
 						//empty title //// useless
