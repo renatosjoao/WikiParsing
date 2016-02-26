@@ -331,7 +331,7 @@ public class WikipediaSAXParser {
 											mention = temp[0].trim();
 										}	
 									
-										if (mention.length() == 0 || (mention == "")|| (entitylink.length() == 0)|| (entitylink == "")) {
+										if (mention.length() == 0 || (mention == " ")|| (entitylink.length() == 0)|| (entitylink == " ")) {
 											continue;
 										}
 										if (mention.contains(":") || (entitylink.contains(":"))) { // ignoring rubbish such as Image:Kropotkin // Nadar.jpg]
@@ -602,7 +602,7 @@ public class WikipediaSAXParser {
 							duplicatePageTitle.put(pTitle, count+1);
 						}
 
-						allPagesTitlesList.add(pTitle); // allPagesTitlesList excludes and Special pages
+						allPagesTitlesList.add(pTitle); // allPagesTitlesList excludesSpecial pages
 						TOTAL_PAGE_TITLE++;
 
 					if (pTitle.length() == 0 || (pTitle == " ")) {
@@ -616,9 +616,9 @@ public class WikipediaSAXParser {
 							 Matcher matcher = mentionEntityPattern.matcher(wikitext);	
 							 while(matcher.find()){
 								 String redirectedTitle = matcher.group(1).trim();
-								 if(redirectedTitle.contains("Category:")){
+								 if(redirectedTitle.contains("Category:") || redirectedTitle.contains("Help:") || redirectedTitle.contains("Image:") ||	redirectedTitle.contains("User:") || redirectedTitle.contains("MediaWiki:") || redirectedTitle.contains("Wikipedia:") || redirectedTitle.contains("Portal:") || redirectedTitle.contains("Template:") || redirectedTitle.contains("File:") ||
+										 redirectedTitle.contains("Book:") || redirectedTitle.contains("Draft:") || redirectedTitle.contains("Module:") || redirectedTitle.contains("TimedText:") || redirectedTitle.contains("Topic:")){
 									 continue;
-
 								 }else{
 									 pageTitlesMap.put(pTitle, redirectedTitle);
 									 JSONObject jobj = new JSONObject();
