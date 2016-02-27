@@ -36,6 +36,7 @@ import org.codehaus.jackson.map.ObjectMapper;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
+import org.l3s.statistics.Statistics;
 import edu.jhu.nlp.wikipedia.PageCallbackHandler;
 import edu.jhu.nlp.wikipedia.WikiPage;
 import edu.jhu.nlp.wikipedia.WikiXMLParser;
@@ -77,16 +78,20 @@ public class WikipediaSAXParser {
 	private static PrintWriter writer = null;// new
 												// PrintWriter(articlesMentionsANDLinks,"UTF-8");
 
-	private static int NOREDIRECTION = 0; 					//This is the total number of page titles, without ##REDIRECT
+	private static int ENTITYPAGE = 0; 					//This is the total number of page titles, without ##REDIRECT
 	private static int TOTAL_PAGE_TITLE = 0;			    //This is the total number of page titles, no matter if it is REDIRECT, SPECIAL, etc
 	//				   TOTAL_PAGE_TITLE = REDIRECT_PAGE_TITLE + PAGE_TITLE
 	private static int REDIRECTION = 0;				         //This is the total number of #REDIRECT page titles.
 	private static int SPECIAL_PAGES =0;
 	private static int EMPTY_TITLE_PAGES;
 	private static int IN_TITLES_LIST = 0;
-	private static int IN_MAP_KEYS = 0;
-	private static int IN_MAP_VALUES= 0;
-	private static int MENTION_ENTITY =0;
+	private static int DISAMBIGUATION_PAGE = 0;
+	private static int IN_MAP_VALUES = 0;
+	private static int MENTION_ENTITY = 0;
+	private static int NOMATCH = 0;
+	private static int MATCH = 0;
+	private static int TOTAL_MENTION = 0;
+	private static int mentionEntityPairs = 0;
 	private int DISAMB_PAGE = 0;
 	private int LIST_PAGE = 0;
 	private String[] args = null;
@@ -116,7 +121,7 @@ public class WikipediaSAXParser {
 		 } else {
 			writePageTitles(args[0]);
 			titlesSet = loadTitlesList(pageTitles);
-		 }
+		}
 		/**
 		 *  *  I create the mention/entity file without checking whether the entity has a proper entity page.
 		 */
@@ -135,13 +140,7 @@ public class WikipediaSAXParser {
 		/**
 		 * * Then I check my mention/entity list against the page titles list and the page titles redirection map.
 		 */
-		checkInTitlesList(articlesMentionsANDLinks,titlesSet);
-		checkInTitlesMap(articlesMentionsANDLinks, pageTitlesMap);
-
-		/**
-		 * * Merging and sorting the temp files created in the previous step.
-		 */
-		mergeFilesAndSort("mentionEntity.temp1","mentionEntity.temp2","articlesMentionsANDLinks_SORTED.txt");
+		checkTitles(articlesMentionsANDLinks,titlesSet,pageTitlesMap);
 
 		/**
 		 * * Counting the frequency for mention/entity pairs.
@@ -167,28 +166,42 @@ public class WikipediaSAXParser {
 	 * @param titles
 	 * @throws IOException
 	 */
-	public static void checkInTitlesList(String mentionEntityFile,Set<String> titles) throws IOException{
-		System.out.println("Checking if entity matches the entity page titles list ...");
-		int total = 0;
-		int match = 0;
+	public static void checkTitles(String mentionEntityFile,Set<String> titles, Map<String,String> treemap) throws IOException{
+		long start = System.currentTimeMillis();
+		ArrayList<String> finalList = new ArrayList<String>();
 		BufferedReader bffReader = new BufferedReader(new FileReader(mentionEntityFile));
 		String inLine = null;
-		PrintWriter ptemp1File = new PrintWriter(new File("mentionEntity.temp1"));
 		while ((inLine = bffReader.readLine()) != null) {
-			total+=1;
-				String[] aM = inLine.split(" ; ");
-				if(titles.contains(aM[1])){
-					ptemp1File.println(inLine);
-					match+=1;
+			TOTAL_MENTION+=1;
+			String[] aM = inLine.split(" ; ");
+			if(titles.contains(aM[1])){
+				finalList.add(inLine);
+				MATCH+=1;
+			}else{
+				if(treemap.containsKey(aM[1])){
+					if( (treemap.get(aM[1]) == " ") || (treemap.get(aM[1]).trim().length() == 0) ){
+						continue;
+					}else{
+						finalList.add(inLine);
+						MATCH+=1;
+					}
+				}else{
+					NOMATCH++;
 				}
+			}
 		}
 		bffReader.close();
-		ptemp1File.flush();
-		ptemp1File.close();
-		System.out.println("Total titles : "+total);
-		System.out.println("Number of matches : "+match);
-		System.out.println("Number of non matches : "+(total-match));
-		System.out.println("Done.");
+		Collections.sort(finalList);
+		PrintWriter outputFileWriter = new PrintWriter(new File("articlesMentionsANDLinks_SORTED.txt"));
+		for(String str : finalList){
+			outputFileWriter.println(str);
+		}
+		outputFileWriter.flush();
+		outputFileWriter.close();
+		long stop = System.currentTimeMillis();
+		Statistics st = new Statistics();
+		st.writeMentionEntityStatistics((stop - start) / 1000.0,MATCH, NOMATCH);
+
 	}
 
 	/***
@@ -300,8 +313,14 @@ public class WikipediaSAXParser {
 					String text = getPlainText(wikitext);
 					String title = page.getTitle().trim();
 					Matcher mRedirect = redirectPattern.matcher(wikitext);
-					if(title.contains("Category:") || title.contains("Help:") || title.contains("Image:") ||title.contains("User:") || title.contains("MediaWiki:") || title.contains("Wikipedia:") || title.contains("Portal:") || title.contains("Template:") || title.contains("File:")
-							|| title.length() == 0 || (title == " ")  || title.contains("Book:") || title.contains("Draft:") || title.contains("Module:") || title.contains("TimedText:") || title.contains("Topic:")) {
+					if(title.contains("Category:") || title.contains("Help:") ||
+							title.contains("Image:") ||title.contains("User:") ||
+							title.contains("MediaWiki:") || title.contains("Wikipedia:") ||
+							title.contains("Portal:") || title.contains("Template:") ||
+							title.contains("File:")	|| title.length() == 0 ||
+							title == " "  || title.contains("Book:") ||
+							title.contains("Draft:") || title.contains("Module:") ||
+							title.contains("TimedText:") || title.contains("Topic:")) {
 						//DO NOTHING if it is a Special Page ! Special pages are pages such as Help: , Wikipedia:, User: pages
 						//DO NOTHING if it is an empty page title.
 
@@ -335,6 +354,9 @@ public class WikipediaSAXParser {
 											continue;
 										}
 										if (mention.contains(":") || (entitylink.contains(":"))) { // ignoring rubbish such as Image:Kropotkin // Nadar.jpg]
+											continue;
+										}
+										if(entitylink.contains("#")){
 											continue;
 										}
 										//MENTION_ENTITY++;
@@ -583,56 +605,70 @@ public class WikipediaSAXParser {
 		}
 		try {
 			wxsp.setPageCallback(new PageCallbackHandler() {
-
 				@SuppressWarnings("unchecked")
 				public void process(WikiPage page) {
-					String pTitle = page.getTitle().trim();
-					String wikitext = page.getWikiText().trim();
-					Matcher mRedirect = redirectPattern.matcher(wikitext);
-					if(pTitle.contains("Category:") || pTitle.contains("Help:") || pTitle.contains("Image:") ||	pTitle.contains("User:") || pTitle.contains("MediaWiki:") || pTitle.contains("Wikipedia:") || pTitle.contains("Portal:") || pTitle.contains("Template:") || pTitle.contains("File:") ||
-							pTitle.contains("Book:") || pTitle.contains("Draft:") || pTitle.contains("Module:") || pTitle.contains("TimedText:") || pTitle.contains("Topic:") ){
+					String pTitle = page.getTitle().replaceAll("_"," ").trim();
+					char[] pTitleArray = pTitle.trim().toCharArray();
+					if(pTitleArray.length>0){
+						pTitleArray[0] = Character.toUpperCase(pTitleArray[0]);
+						pTitle = new String(pTitleArray);
+					}
+					TOTAL_PAGE_TITLE++;
+					if(pTitle.contains("Category:") || pTitle.contains("Help:") || pTitle.contains("Image:") ||
+							pTitle.contains("User:") ||	pTitle.contains("MediaWiki:") || pTitle.contains("Wikipedia:") ||
+							pTitle.contains("Portal:") || pTitle.contains("Template:") || pTitle.contains("File:") ||
+							pTitle.contains("Book:") ||	pTitle.contains("Draft:") || pTitle.contains("Module:") ||
+							pTitle.contains("TimedText:") || pTitle.contains("Topic:") ){
 						SPECIAL_PAGES++;
 						specialPagesTitlesList.add(pTitle);
 					}else{
-						if(allPagesTitlesList.contains(pTitle)){
-							Integer count = duplicatePageTitle.get(pTitle);
-							if (count == null) {
-								count = 1;
-							}
-							duplicatePageTitle.put(pTitle, count+1);
-						}
-
 						allPagesTitlesList.add(pTitle); // allPagesTitlesList excludesSpecial pages
-						TOTAL_PAGE_TITLE++;
-
 					if (pTitle.length() == 0 || (pTitle == " ")) {
 						EMPTY_TITLE_PAGES++;
-						//empty title //// useless
+					}else{
+						if(pTitle.contains("(disambiguation)")){
+							DISAMBIGUATION_PAGE++;
 						}else{
+							String wikitext = page.getWikiText().trim();
+							Matcher mRedirect = redirectPattern.matcher(wikitext);
+
 							if (mRedirect.find()) {
 								redirectPagesTitlesList.add(pTitle);
 								REDIRECTION++;
 /********/
 							 Matcher matcher = mentionEntityPattern.matcher(wikitext);	
 							 while(matcher.find()){
-								 String redirectedTitle = matcher.group(1).trim();
-								 if(redirectedTitle.contains("Category:") || redirectedTitle.contains("Help:") || redirectedTitle.contains("Image:") ||	redirectedTitle.contains("User:") || redirectedTitle.contains("MediaWiki:") || redirectedTitle.contains("Wikipedia:") || redirectedTitle.contains("Portal:") || redirectedTitle.contains("Template:") || redirectedTitle.contains("File:") ||
-										 redirectedTitle.contains("Book:") || redirectedTitle.contains("Draft:") || redirectedTitle.contains("Module:") || redirectedTitle.contains("TimedText:") || redirectedTitle.contains("Topic:")){
+								 String redirectedTitle = matcher.group(1).replaceAll("_"," ").trim();
+								 if(redirectedTitle.contains("Category:") || redirectedTitle.contains("Help:") ||
+										 redirectedTitle.contains("Image:") ||	redirectedTitle.contains("User:") ||
+										 redirectedTitle.contains("MediaWiki:") || redirectedTitle.contains("Wikipedia:") ||
+										 redirectedTitle.contains("Portal:") || redirectedTitle.contains("Template:") ||
+										 redirectedTitle.contains("File:") || redirectedTitle.contains("Book:") ||
+										 redirectedTitle.contains("Draft:") || redirectedTitle.contains("Module:") ||
+										 redirectedTitle.contains("TimedText:") || redirectedTitle.contains("Topic:")){
 									 continue;
 								 }else{
-									 pageTitlesMap.put(pTitle, redirectedTitle);
-									 JSONObject jobj = new JSONObject();
-							         jobj.put("redirect", redirectedTitle);
-									 jobj.put("title", pTitle);
-						             Jarray.add(jobj);
+									 char[] redirectionTitleArray = redirectedTitle.toCharArray();
+									 if(redirectionTitleArray.length > 0){
+										 redirectionTitleArray[0] = Character.toUpperCase(redirectionTitleArray[0]);
+										 redirectedTitle = new String(redirectionTitleArray);
+										 pageTitlesMap.put(pTitle, redirectedTitle);
+										 JSONObject jobj = new JSONObject();
+										 jobj.put("redirect", redirectedTitle);
+										 jobj.put("title", pTitle);
+										 Jarray.add(jobj);
+									 }else{
+										 continue;
+									 }
 								 }
 							 }
 /***********/
 							}else{// In case it is not #REDIRECT. So I am getting the page title and adding to list. This is the actual list of page titles I am interested.
-								NOREDIRECTION++;
+								ENTITYPAGE++;
 								pagesTitlesList.add(pTitle);
 							}
 						}
+					}
 					}
 				}
 			});
@@ -640,10 +676,13 @@ public class WikipediaSAXParser {
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
+
+		long stop = System.currentTimeMillis();
+
 		//***************************************************************************************//
 		//Writing all pages titles to output file "pageTitles_ALL.txt"
 		PrintWriter allPagesTitlesWriter = new PrintWriter("pageTitles_ALL.txt", "UTF-8");
-		Collections.sort(allPagesTitlesList); 
+		Collections.sort(allPagesTitlesList);
 		allPagesTitlesWriter.println("<<< Total number of pages: "+TOTAL_PAGE_TITLE+" >>>");
 		for(String title:allPagesTitlesList){
 			allPagesTitlesWriter.println(title);
@@ -663,21 +702,10 @@ public class WikipediaSAXParser {
 		specialPagesTitlesWriter.close();
 
 		//***************************************************************************************//
-		//Writing ONLY pages titles with redirection (#REDIRECT) to output file "pageTitles_REDIRECT.txt"
-		PrintWriter redirectPagesTitlesWriter = new PrintWriter("pagesTitles_REDIRECT.txt", "UTF-8");
-		Collections.sort(redirectPagesTitlesList);
-		redirectPagesTitlesWriter.println("<<< Number of redirected pages title: "+REDIRECTION+" >>>");
-		for(String title:redirectPagesTitlesList){
-			redirectPagesTitlesWriter.println(title);
-		}
-		redirectPagesTitlesWriter.flush();
-		redirectPagesTitlesWriter.close();
-
-		//***************************************************************************************//
-		//Writing ONLY pages titles without redirection (#REDIRECT) and without SPECIAL pages to output file "pageTitles.txt"
+		//Writing ONLY Entity pages titles( i.e.  without redirection (#REDIRECT) and without SPECIAL pages) to output file "pageTitles.txt"
 		PrintWriter pagesTitlesWriter = new PrintWriter("pagesTitles.txt", "UTF-8");
 		Collections.sort(pagesTitlesList);
-		pagesTitlesWriter.println("<<< Number of pages titles: "+NOREDIRECTION+" >>>");
+		pagesTitlesWriter.println("<<< Number of pages titles: "+ENTITYPAGE+" >>>");
 		for(String title:pagesTitlesList){
 			pagesTitlesWriter.println(title);
 		}
@@ -685,12 +713,9 @@ public class WikipediaSAXParser {
 		pagesTitlesWriter.close();
 
 		//***************************************************************************************//
-		long stop = System.currentTimeMillis();
-		
-		
+
 		ObjectMapper jsonMapper = new ObjectMapper();
 		try {
-			//String outputJSON = jsonMapper.writerWithDefaultPrettyPrinter().writeValueAsString(pageTitlesMap);
 			String outputJSON = jsonMapper.writerWithDefaultPrettyPrinter().writeValueAsString(Jarray);
 			PrintWriter redirectPagesTitlesMapWriter = new PrintWriter("pagesTitles_REDIRECT.json", "UTF-8");
 			redirectPagesTitlesMapWriter.println(outputJSON);
@@ -699,18 +724,14 @@ public class WikipediaSAXParser {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-		
+
 		allPagesTitlesList.clear();
 		specialPagesTitlesList.clear();
 		redirectPagesTitlesList.clear();
 		System.gc();
-		
-		System.out.println("Finished writing page titles files in "+ ((stop - start) / 1000.0) + " seconds.");
-		System.out.println("Number of SPECIAL pages titles  : "+SPECIAL_PAGES);
-		System.out.println("Number of #REDIRECTION pages titles: "+REDIRECTION);
-		System.out.println("Number of empty pages titles : "+EMPTY_TITLE_PAGES);
-		System.out.println("Number of pages titles without #REDIRECTION :" +NOREDIRECTION);
-		System.out.println("Total number of pages  <<<< Excluding SPECIAL pages.>>>> :" +TOTAL_PAGE_TITLE);
+
+		Statistics st = new Statistics();
+		st.writeTitlesStatistics(((stop - start) / 1000.0), SPECIAL_PAGES, REDIRECTION,DISAMBIGUATION_PAGE, ENTITYPAGE, duplicatePageTitle.size(),EMPTY_TITLE_PAGES,TOTAL_PAGE_TITLE);
 	}
 
 	/**
@@ -897,7 +918,6 @@ public class WikipediaSAXParser {
 		while ((inpLine = bffReader.readLine()) != null) {
 			String[] words = inpLine.split(" ; ");
 			if (words.length >= 1) {
-				System.out.println(words[0].trim() + " ; " + words[1].trim());
 				String key_value = words[0].trim() + " ; " + words[1].trim();
 				if ((!key_value.isEmpty()) && (key_value != null) && (key_value != "")) {
 					Integer f = frequency.get(key_value);
@@ -1028,6 +1048,7 @@ public class WikipediaSAXParser {
 	 * @throws UnsupportedEncodingException
 	 */
 	public static void writeMentionEntity_NO_Checking(String inputFile, String outputFile) throws FileNotFoundException, UnsupportedEncodingException {
+		long start = System.currentTimeMillis();
 		writer = new PrintWriter(outputFile, "UTF-8");
 		WikiXMLParser wxsp = null;
 		try {
@@ -1041,17 +1062,42 @@ public class WikipediaSAXParser {
 				public void process(WikiPage page) {
 					String wikitext = page.getWikiText().trim();
 					String text = getPlainText(wikitext);
-					String title = page.getTitle().trim();
-					if(title.contains("Category:") || title.contains("Help:") || title.contains("Image:") ||title.contains("User:") || title.contains("MediaWiki:") || title.contains("Wikipedia:") || title.contains("Portal:") || title.contains("Template:") || title.contains("File:")
-							|| title.length() == 0 || (title == " ")  || title.contains("Book:") || title.contains("Draft:") || title.contains("Module:") || title.contains("TimedText:") || title.contains("Topic:")) {
+					String title = page.getTitle().replaceAll("_"," ").trim();
+
+					char[] pTitleArray = title.trim().toCharArray();
+					if(pTitleArray.length>0){
+						pTitleArray[0] = Character.toUpperCase(pTitleArray[0]);
+						title = new String(pTitleArray);
+					}
+
+					if(title.contains("Category:") || title.contains("Help:") ||
+							title.contains("Image:") ||title.contains("User:") ||
+							title.contains("MediaWiki:") || title.contains("Wikipedia:") ||
+							title.contains("Portal:") || title.contains("Template:") ||
+							title.contains("File:")	|| title.length() == 0 || (title == " ")  ||
+							title.contains("Book:") || title.contains("Draft:") ||
+							title.contains("Module:") || title.contains("TimedText:") ||
+							title.contains("Topic:")) {
 						//DO NOTHING if it is a Special Page ! Special pages are pages such as Help: , Wikipedia:, User: pages
 						//DO NOTHING if it is an empty page title.
+					}else{
+						if(title.contains("(disambiguation)")){
+						//continue; I am not interested in Disambiguation
 							}else{
+
+								if(titlesSet.contains(title)){
+									Integer count = duplicatePageTitle.get(title);
+									if (count == null) {
+										count = 0;
+									}
+									duplicatePageTitle.put(title, count+1);
+								}
+
 								Matcher mRedirect = redirectPattern.matcher(wikitext);
 								if(mRedirect.find()) {
 									//DO NOTHING if it is redirect page !
 								}else{
-								if ((text != null) && (!text.isEmpty()) && (text != "")) {
+								if ((text != null) && (!text.isEmpty()) && (text != " ")) {
 									Matcher matcher = mentionEntityPattern.matcher(text);
 									while (matcher.find()) {
 										String[] temp = matcher.group(1).split("\\|");
@@ -1061,24 +1107,46 @@ public class WikipediaSAXParser {
 										String mention = null;
 										String entitylink = null;
 										if (temp.length > 1) {
-											entitylink = temp[0].trim();
+											entitylink = temp[0].replaceAll("_"," ").trim();
 											mention = temp[1].trim();
 										} else {
-											entitylink = temp[0].trim();
-											mention = temp[0].trim();
+											entitylink = temp[0].replaceAll("_"," ").trim();
+											mention = temp[0].replaceAll("_"," ").trim();
 										}
-										if (mention.length() == 0 || (mention == "")|| (entitylink.length() == 0)|| (entitylink == "")) {
+										if (mention.length() == 0 || (mention == " ")|| (entitylink.length() == 0)|| (entitylink == " ")) {
 											continue;
 										}
 										if (mention.contains(":") || (entitylink.contains(":"))) { // ignoring rubbish such as Image:Kropotkin // Nadar.jpg]
 											continue;
 										}
+										if (mention.contains("(disambiguation)") || (entitylink.contains("(disambiguation)"))) { // disambiguation
+											continue;
+										}
+										if(entitylink.contains("#")){
+											continue;
+										}
+
+										int spaceIndex = mention.indexOf("(");
+										if ((spaceIndex != 0 ) && (spaceIndex!=-1)){
+										    mention = mention.substring(0, spaceIndex);
+										}
+
+										char[] entityLinkArray = entitylink.toCharArray();
+										if(entityLinkArray.length>0){
+											entityLinkArray[0] = Character.toUpperCase(entityLinkArray[0]);
+											entitylink = new String(entityLinkArray);
 											String mentionEntity = mention.trim() + " ; "+ entitylink.trim();
 											writer.println(mentionEntity);
-							}
+											mentionEntityPairs++;
+										}else{
+											continue;
+										}
+									}
 						}
+					}
 				}
-					}}
+					}
+					}
 				});
 				wxsp.parse();
 			} catch (Exception e) {
@@ -1086,6 +1154,21 @@ public class WikipediaSAXParser {
 			}
 			writer.flush();
 			writer.close();
+			long stop = System.currentTimeMillis();
+			PrintWriter duplicatePageTitlesWriter = new PrintWriter("pagesTitlesDuplicates.txt", "UTF-8");
+			Iterator<?> it = duplicatePageTitle.entrySet().iterator();
+			while (it.hasNext()) {
+				Map.Entry pair = (Map.Entry) it.next();
+				if((int) pair.getValue() >= 2){
+					duplicatePageTitlesWriter.println(pair.getKey()+" : " +pair.getValue());
+				}
+				it.remove();
+			}
+			duplicatePageTitlesWriter.flush();
+			duplicatePageTitlesWriter.close();
+			Statistics st = new Statistics();
+			st.writeMentionEntityStatistics((stop - start) / 1000.0,mentionEntityPairs);
+
 	}
 
 }
