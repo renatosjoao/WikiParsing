@@ -170,26 +170,31 @@ public class WikipediaSAXParser {
 		long start = System.currentTimeMillis();
 		ArrayList<String> finalList = new ArrayList<String>();
 		BufferedReader bffReader = new BufferedReader(new FileReader(mentionEntityFile));
+		PrintWriter notAMatchtFileWriter = new PrintWriter(new File("articlesMentionsANDLinks_NOT_MATCHED.txt"));
+
 		String inLine = null;
 		while ((inLine = bffReader.readLine()) != null) {
 			TOTAL_MENTION+=1;
 			String[] aM = inLine.split(" ; ");
+			if(treemap.containsKey(aM[1])){
+				if( (treemap.get(aM[1]) == " ") || (treemap.get(aM[1]).trim().length() == 0) ){
+					continue;
+				}else{
+					finalList.add(aM[0] + " ; " + treemap.get(aM[1]) );
+					MATCH+=1;
+				}
+			}else{
 			if(titles.contains(aM[1])){
 				finalList.add(inLine);
 				MATCH+=1;
 			}else{
-				if(treemap.containsKey(aM[1])){
-					if( (treemap.get(aM[1]) == " ") || (treemap.get(aM[1]).trim().length() == 0) ){
-						continue;
-					}else{
-						finalList.add(inLine);
-						MATCH+=1;
-					}
-				}else{
 					NOMATCH++;
+					notAMatchtFileWriter.println(inLine);
 				}
 			}
 		}
+		notAMatchtFileWriter.flush();
+		notAMatchtFileWriter.close();
 		bffReader.close();
 		Collections.sort(finalList);
 		PrintWriter outputFileWriter = new PrintWriter(new File("articlesMentionsANDLinks_SORTED.txt"));
