@@ -391,8 +391,6 @@ public class WikipediaSAXParser {
 			long stop = System.currentTimeMillis();
 			System.out.println("Finished collecting articles Mentions and Entities Links in "+ ((stop - start) / 1000.0) + " seconds.");
 			System.out.println("Number of mention/entities pairs : "+MENTION_ENTITY);
-			//System.out.println("Number of entities matches in the map keys :"+IN_MAP_KEYS);
-			//System.out.println("Number of entities matches in the map values : "+IN_MAP_VALUES);
 			System.out.println("Number of entities matches in the Titles list : "+IN_TITLES_LIST);
 	}
 
@@ -642,6 +640,11 @@ public class WikipediaSAXParser {
 									 if(redirectionTitleArray.length > 0){
 										 redirectionTitleArray[0] = Character.toUpperCase(redirectionTitleArray[0]);
 										 redirectedTitle = new String(redirectionTitleArray);
+										 if(redirectedTitle.contains("#")){
+											if ((redirectedTitle.indexOf("#") != 0 ) && (redirectedTitle.indexOf("#") !=-1)){
+											    redirectedTitle = redirectedTitle.substring( 0, redirectedTitle.indexOf("#") );
+											}
+										 }
 										 pageTitlesMap.put(pTitle, redirectedTitle);
 										 JSONObject jobj = new JSONObject();
 										 jobj.put("redirect", redirectedTitle);
@@ -655,6 +658,11 @@ public class WikipediaSAXParser {
 /***********/
 							}else{// In case it is not #REDIRECT. So I am getting the page title and adding to list. This is the actual list of page titles I am interested.
 								ENTITYPAGE++;
+								if(pTitle.contains("#")){
+									if ((pTitle.indexOf("#") != 0 ) && (pTitle.indexOf("#") !=-1)){
+									    pTitle = pTitle.substring( 0, pTitle.indexOf("#") );
+									}
+								 }
 								pagesTitlesList.add(pTitle);
 							}
 						}
@@ -1106,14 +1114,14 @@ public class WikipediaSAXParser {
 											continue;
 										}
 										if(entitylink.contains("#")){
-											continue;
+											if ((entitylink.indexOf("#") != 0 ) && (entitylink.indexOf("#") != -1)){
+											    entitylink = entitylink.substring(0, entitylink.indexOf("#"));
+											}
 										}
-
 										int spaceIndex = mention.indexOf("(");
 										if ((spaceIndex != 0 ) && (spaceIndex!=-1)){
 										    mention = mention.substring(0, spaceIndex);
 										}
-
 										char[] entityLinkArray = entitylink.toCharArray();
 										if(entityLinkArray.length>0){
 											entityLinkArray[0] = Character.toUpperCase(entityLinkArray[0]);
