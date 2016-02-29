@@ -29,6 +29,7 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
 import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
@@ -37,6 +38,7 @@ import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.l3s.statistics.Statistics;
+
 import edu.jhu.nlp.wikipedia.PageCallbackHandler;
 import edu.jhu.nlp.wikipedia.WikiPage;
 import edu.jhu.nlp.wikipedia.WikiXMLParser;
@@ -318,14 +320,7 @@ public class WikipediaSAXParser {
 					String text = getPlainText(wikitext);
 					String title = page.getTitle().trim();
 					Matcher mRedirect = redirectPattern.matcher(wikitext);
-					if(title.contains("Category:") || title.contains("Help:") ||
-							title.contains("Image:") ||title.contains("User:") ||
-							title.contains("MediaWiki:") || title.contains("Wikipedia:") ||
-							title.contains("Portal:") || title.contains("Template:") ||
-							title.contains("File:")	|| title.length() == 0 ||
-							title == " "  || title.contains("Book:") ||
-							title.contains("Draft:") || title.contains("Module:") ||
-							title.contains("TimedText:") || title.contains("Topic:")) {
+					if(isSpecial(title)) {
 						//DO NOTHING if it is a Special Page ! Special pages are pages such as Help: , Wikipedia:, User: pages
 						//DO NOTHING if it is an empty page title.
 
@@ -619,11 +614,7 @@ public class WikipediaSAXParser {
 						pTitle = new String(pTitleArray);
 					}
 					TOTAL_PAGE_TITLE++;
-					if(pTitle.contains("Category:") || pTitle.contains("Help:") || pTitle.contains("Image:") ||
-							pTitle.contains("User:") ||	pTitle.contains("MediaWiki:") || pTitle.contains("Wikipedia:") ||
-							pTitle.contains("Portal:") || pTitle.contains("Template:") || pTitle.contains("File:") ||
-							pTitle.contains("Book:") ||	pTitle.contains("Draft:") || pTitle.contains("Module:") ||
-							pTitle.contains("TimedText:") || pTitle.contains("Topic:") ){
+					if(isSpecial(pTitle)){
 						SPECIAL_PAGES++;
 						specialPagesTitlesList.add(pTitle);
 					}else{
@@ -644,13 +635,7 @@ public class WikipediaSAXParser {
 							 Matcher matcher = mentionEntityPattern.matcher(wikitext);	
 							 while(matcher.find()){
 								 String redirectedTitle = matcher.group(1).replaceAll("_"," ").trim();
-								 if(redirectedTitle.contains("Category:") || redirectedTitle.contains("Help:") ||
-										 redirectedTitle.contains("Image:") ||	redirectedTitle.contains("User:") ||
-										 redirectedTitle.contains("MediaWiki:") || redirectedTitle.contains("Wikipedia:") ||
-										 redirectedTitle.contains("Portal:") || redirectedTitle.contains("Template:") ||
-										 redirectedTitle.contains("File:") || redirectedTitle.contains("Book:") ||
-										 redirectedTitle.contains("Draft:") || redirectedTitle.contains("Module:") ||
-										 redirectedTitle.contains("TimedText:") || redirectedTitle.contains("Topic:")){
+								 if(isSpecial(redirectedTitle)){
 									 continue;
 								 }else{
 									 char[] redirectionTitleArray = redirectedTitle.toCharArray();
@@ -1075,14 +1060,7 @@ public class WikipediaSAXParser {
 						title = new String(pTitleArray);
 					}
 
-					if(title.contains("Category:") || title.contains("Help:") ||
-							title.contains("Image:") ||title.contains("User:") ||
-							title.contains("MediaWiki:") || title.contains("Wikipedia:") ||
-							title.contains("Portal:") || title.contains("Template:") ||
-							title.contains("File:")	|| title.length() == 0 || (title == " ")  ||
-							title.contains("Book:") || title.contains("Draft:") ||
-							title.contains("Module:") || title.contains("TimedText:") ||
-							title.contains("Topic:")) {
+					if(isSpecial(title)) {
 						//DO NOTHING if it is a Special Page ! Special pages are pages such as Help: , Wikipedia:, User: pages
 						//DO NOTHING if it is an empty page title.
 					}else{
@@ -1174,6 +1152,25 @@ public class WikipediaSAXParser {
 			Statistics st = new Statistics();
 			st.writeMentionEntityStatistics((stop - start) / 1000.0,mentionEntityPairs);
 
+	}
+
+	/**
+	 *
+	 * @param title
+	 * @return
+	 */
+	public static boolean isSpecial(String title) {
+		if (title.contains("Category:") || title.contains("Help:")
+				|| title.contains("Image:") || title.contains("User:")
+				|| title.contains("MediaWiki:") || title.contains("Wikipedia:")
+				|| title.contains("Portal:") || title.contains("Template:")
+				|| title.contains("File:") || title.contains("Book:")
+				|| title.contains("Draft:") || title.contains("Module:")
+				|| title.contains("TimedText:") || title.contains("Topic:")) {
+			return true;
+		} else {
+			return false;
+		}
 	}
 
 }
