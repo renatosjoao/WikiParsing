@@ -48,9 +48,9 @@ public class WikipediaSAXParser {
 	//private static Pattern categoryPattern = Pattern.compile("\\[\\["+ "Category" + ":(.*?)\\]\\]", Pattern.MULTILINE| Pattern.CASE_INSENSITIVE);
 	//private static Pattern OtherPattern = Pattern.compile("\\[\\[[A-Z]+:(.*?)\\]\\]", Pattern.MULTILINE	| Pattern.CASE_INSENSITIVE);
     private static Pattern stylesPattern = Pattern.compile("\\{\\|.*?\\|\\}$", Pattern.MULTILINE | Pattern.DOTALL);
-    private static Pattern infoboxCleanupPattern = Pattern.compile("\\{\\{infobox.*?\\}\\}$", Pattern.MULTILINE | Pattern.DOTALL | Pattern.CASE_INSENSITIVE);
-    private static Pattern curlyCleanupPattern0 = Pattern.compile("^\\{\\{.*?\\}\\}$", Pattern.MULTILINE | Pattern.DOTALL);
-    private static Pattern curlyCleanupPattern1 = Pattern.compile("\\{\\{.*?\\}\\}", Pattern.MULTILINE | Pattern.DOTALL);
+    //private static Pattern infoboxCleanupPattern = Pattern.compile("\\{\\{infobox.*?\\}\\}$", Pattern.MULTILINE | Pattern.DOTALL | Pattern.CASE_INSENSITIVE);
+    //private static Pattern curlyCleanupPattern0 = Pattern.compile("^\\{\\{.*?\\}\\}$", Pattern.MULTILINE | Pattern.DOTALL);
+    //private static Pattern curlyCleanupPattern1 = Pattern.compile("\\{\\{.*?\\}\\}", Pattern.MULTILINE | Pattern.DOTALL);
 	//private static Pattern curlyCleanupPattern0 = Pattern.compile("^\\{\\{.*?\\}\\}$", Pattern.MULTILINE | Pattern.DOTALL);
 	//private static Pattern curlyCleanupPattern1 = Pattern.compile("\\{\\{.*?\\}\\}", Pattern.MULTILINE | Pattern.DOTALL);
     private static Pattern refCleanupPattern = Pattern.compile("<ref>.*?</ref>", Pattern.MULTILINE | Pattern.DOTALL);
@@ -66,19 +66,18 @@ public class WikipediaSAXParser {
     //private static Pattern htmlExtLinkPattern = Pattern.compile("\\[http:\\/\\/(.*?)\\]",Pattern.MULTILINE | Pattern.DOTALL);
 	// private static Pattern redirectPattern = Pattern.compile("#\\s*\\[\\[(.*?)\\]\\]", Pattern.CASE_INSENSITIVE);
 	private static Pattern redirectPattern = Pattern.compile("#REDIRECT.*\\[\\[(.*?)\\]\\]", Pattern.MULTILINE| Pattern.CASE_INSENSITIVE);
-	private static final Pattern URL = Pattern.compile("http://[^ <]+");
-	private static Pattern stubPattern = Pattern.compile("\\-\\}\\}",Pattern.CASE_INSENSITIVE);
-	private static Pattern disambCatPattern = Pattern.compile("\\{\\{\\}\\}",Pattern.CASE_INSENSITIVE);
+	//private static final Pattern URL = Pattern.compile("http://[^ <]+");
+	//private static Pattern stubPattern = Pattern.compile("\\-\\}\\}",Pattern.CASE_INSENSITIVE);
+	//private static Pattern disambCatPattern = Pattern.compile("\\{\\{\\}\\}",Pattern.CASE_INSENSITIVE);
 	private static Pattern mentionEntityPattern = Pattern.compile("\\[\\[(.*?)\\]\\]", Pattern.MULTILINE);
-	
-	private static final Pattern LANG_LINKS = Pattern.compile("\\[\\[[a-z\\-]+:[^\\]]+\\]\\]");
-	private static final Pattern DOUBLE_CURLY = Pattern.compile("\\{\\{.*?\\}\\}");
-	private static final Pattern HTML_TAG = Pattern.compile("<[^!][^>]*>");
-	private static Pattern namePattern = Pattern.compile("^[a-zA-Z_  -]*",Pattern.MULTILINE);
+	//private static final Pattern LANG_LINKS = Pattern.compile("\\[\\[[a-z\\-]+:[^\\]]+\\]\\]");
+	//private static final Pattern DOUBLE_CURLY = Pattern.compile("\\{\\{.*?\\}\\}");
+	//private static final Pattern HTML_TAG = Pattern.compile("<[^!][^>]*>");
+	//private static Pattern namePattern = Pattern.compile("^[a-zA-Z_  -]*",Pattern.MULTILINE);
 	private static String pageTitles = "pagesTitles.txt";
-	private static String articlesMentionsANDLinks = "articlesMentionsANDLinks.txt";
+	private static String mentionEntityLinks = "mentionEntityLinks.txt";
 	private static PrintWriter writer = null;// new
-												// PrintWriter(articlesMentionsANDLinks,"UTF-8");
+												// PrintWriter(mentionEntityLinks,"UTF-8");
 
 	private static int ENTITYPAGE = 0; 					//This is the total number of page titles, without ##REDIRECT
 	private static int TOTAL_PAGE_TITLE = 0;			    //This is the total number of page titles, no matter if it is REDIRECT, SPECIAL, etc
@@ -88,7 +87,6 @@ public class WikipediaSAXParser {
 	private static int EMPTY_TITLE_PAGES;
 	private static int IN_TITLES_LIST = 0;
 	private static int DISAMBIGUATION_PAGE = 0;
-	private static int IN_MAP_VALUES = 0;
 	private static int MENTION_ENTITY = 0;
 	private static int NOMATCH = 0;
 	private static int MATCH = 0;
@@ -96,7 +94,6 @@ public class WikipediaSAXParser {
 	private static int mentionEntityPairs = 0;
 	private int DISAMB_PAGE = 0;
 	private int LIST_PAGE = 0;
-	private String[] args = null;
 	private static Options options = new Options();
 	private static Map<String, String> pageTitlesMap = new TreeMap<String,String>();
 	private static Map<String,Integer> duplicatePageTitle = new TreeMap<String, Integer>();
@@ -127,12 +124,11 @@ public class WikipediaSAXParser {
 		/**
 		 *  *  I create the mention/entity file without checking whether the entity has a proper entity page.
 		 */
-		writeMentionEntity_NO_Checking(args[0],	articlesMentionsANDLinks);
+		writeMentionEntity_NO_Checking(args[0],	mentionEntityLinks);
 		/**
 		 *  *  Now I want to check if the page titles redirection map file exists. If it does not exist in the current directory. I will create it.
 		 */
 		File mpFile = new File("pagesTitles_REDIRECT.json");
-		//Map<String,String> redirMap = new TreeMap<>();
 		if (mpFile.exists()) {
 			pageTitlesMap = loadTitlesRedirectMap("pagesTitles_REDIRECT.json");
 		}else{
@@ -142,22 +138,22 @@ public class WikipediaSAXParser {
 		/**
 		 * * Then I check my mention/entity list against the page titles list and the page titles redirection map.
 		 */
-		checkTitles(articlesMentionsANDLinks,titlesSet,pageTitlesMap);
+		checkTitles(mentionEntityLinks,titlesSet,pageTitlesMap);
 
 		/**
 		 * * Counting the frequency for mention/entity pairs.
 		 */
-		frequencyCount("articlesMentionsANDLinks_SORTED.txt","articlesMentionsANDLinks_SORTED_Freq.txt");
+		frequencyCount("mentionEntityLinks_SORTED.txt","mentionEntityLinks_SORTED_Freq.txt");
 
 		/**
 		 * * Counting the frequency for mention/entity pairs WITHOUT duplicates.
 		 */
-		frequencyCountUnique("articlesMentionsANDLinks_SORTED.txt","articlesMentionsANDLinks_SORTED_Freq_Uniq.txt");
+		frequencyCountUnique("mentionEntityLinks_SORTED.txt","mentionEntityLinks_SORTED_Freq_Uniq.txt");
 
 		/**
 		 * * Finally calculating PRIOR probability for mention/entity pairs.
 		 */
-		calculatePRIOR("articlesMentionsANDLinks_SORTED_Freq.txt","articlesMentionsANDLinks_PRIOR.txt");
+		calculatePRIOR("mentionEntityLinks_SORTED_Freq.txt","mentionEntityLinks_PRIOR.txt");
 
 	}
 /********************************** END OF MAIN ************************************************************/
@@ -172,7 +168,7 @@ public class WikipediaSAXParser {
 		long start = System.currentTimeMillis();
 		ArrayList<String> finalList = new ArrayList<String>();
 		BufferedReader bffReader = new BufferedReader(new FileReader(mentionEntityFile));
-		PrintWriter notAMatchtFileWriter = new PrintWriter(new File("articlesMentionsANDLinks_NOT_MATCHED.txt"));
+		PrintWriter notAMatchtFileWriter = new PrintWriter(new File("mentionEntityLinks_NOT_MATCHED.txt"));
 
 		String inLine = null;
 		while ((inLine = bffReader.readLine()) != null) {
@@ -199,7 +195,7 @@ public class WikipediaSAXParser {
 		notAMatchtFileWriter.close();
 		bffReader.close();
 		Collections.sort(finalList);
-		PrintWriter outputFileWriter = new PrintWriter(new File("articlesMentionsANDLinks_SORTED.txt"));
+		PrintWriter outputFileWriter = new PrintWriter(new File("mentionEntityLinks_SORTED.txt"));
 		for(String str : finalList){
 			outputFileWriter.println(str);
 		}
@@ -324,7 +320,6 @@ public class WikipediaSAXParser {
 						//DO NOTHING if it is a Special Page ! Special pages are pages such as Help: , Wikipedia:, User: pages
 						//DO NOTHING if it is an empty page title.
 
-						//KATJA asked to run two experiments
 						// 1.counting the mention/entity from disambiguation pages (i.e. Car (Disambiguation)
 						// 2.NOT counting the mention/entity from  disambiguation pages
 						}else{
@@ -439,9 +434,9 @@ public class WikipediaSAXParser {
 	 */
 	public static void calculatePRIOR(String inputFile, String outputFile)throws IOException {
 		long start = System.currentTimeMillis();
-		BufferedReader buffReader1 = new BufferedReader(new FileReader(inputFile));// "articlesMentionsANDLinks_SORTED_Freq.txt"
-		BufferedReader buffReader2 = new BufferedReader(new FileReader(inputFile));// "articlesMentionsANDLinks_SORTED_Freq.txt"
-		PrintWriter Pwriter = new PrintWriter(outputFile, "UTF-8"); // "articlesMentionsANDLinks_PRIOR.txt"
+		BufferedReader buffReader1 = new BufferedReader(new FileReader(inputFile));// "mentionEntityLinks_SORTED_Freq.txt"
+		BufferedReader buffReader2 = new BufferedReader(new FileReader(inputFile));// "mentionEntityLinks_SORTED_Freq.txt"
+		PrintWriter Pwriter = new PrintWriter(outputFile, "UTF-8"); // "mentionEntityLinks_PRIOR.txt"
 		String line1 = null;
 		String line2 = buffReader2.readLine();
 		Map<String, Double> priorMap = new HashMap<String, Double>();
@@ -1075,66 +1070,58 @@ public class WikipediaSAXParser {
 						if(title.contains("(disambiguation)")){
 						//continue; I am not interested in Disambiguation
 							}else{
-
-								if(titlesSet.contains(title)){
-									Integer count = duplicatePageTitle.get(title);
-									if (count == null) {
-										count = 0;
-									}
-									duplicatePageTitle.put(title, count+1);
-								}
-
 								Matcher mRedirect = redirectPattern.matcher(wikitext);
 								if(mRedirect.find()) {
 									//DO NOTHING if it is redirect page !
 								}else{
-								if ((text != null) && (!text.isEmpty()) && (text != " ")) {
-									Matcher matcher = mentionEntityPattern.matcher(text);
-									while (matcher.find()) {
-										String[] temp = matcher.group(1).split("\\|");
-										if (temp == null || temp.length == 0) {
-											continue;
-										}
-										String mention = null;
-										String entitylink = null;
-										if (temp.length > 1) {
-											entitylink = temp[0].replaceAll("_"," ").trim();
-											mention = temp[1].trim();
-										} else {
-											entitylink = temp[0].replaceAll("_"," ").trim();
-											mention = temp[0].replaceAll("_"," ").trim();
-										}
-										if (mention.length() == 0 || (mention == " ")|| (entitylink.length() == 0)|| (entitylink == " ")) {
-											continue;
-										}
-										if (mention.contains(":") || (entitylink.contains(":"))) { // ignoring rubbish such as Image:Kropotkin // Nadar.jpg]
-											continue;
-										}
-										if (mention.contains("(disambiguation)") || (entitylink.contains("(disambiguation)"))) { // disambiguation
-											continue;
-										}
-										if(entitylink.contains("#")){
-											if ((entitylink.indexOf("#") != 0 ) && (entitylink.indexOf("#") != -1)){
-											    entitylink = entitylink.substring(0, entitylink.indexOf("#"));
+									if ((text != null) && (text != " ")) {
+										Matcher matcher = mentionEntityPattern.matcher(text);
+										while (matcher.find()) {
+											String[] temp = matcher.group(1).split("\\|");
+											if (temp == null || temp.length == 0) {
+												continue;
+											}
+											String mention = null;
+											String entitylink = null;
+											if (temp.length > 1) {
+												entitylink = temp[0].replaceAll("_"," ").trim();
+												mention = temp[1].trim();
+											} else {
+												entitylink = temp[0].replaceAll("_"," ").trim();
+												//mention = temp[0].replaceAll("_"," ").trim();
+												mention = temp[0].trim();
+											}
+											if (mention.length() == 0 || (mention == " ") || (entitylink.length() == 0)|| (entitylink == " ")) {
+												continue;
+											}
+											if (mention.contains(":") || (entitylink.contains(":"))) { // ignoring rubbish such as Image:Kropotkin // Nadar.jpg]
+												continue;
+											}
+											if (mention.contains("(disambiguation)") || (entitylink.contains("(disambiguation)"))) { // disambiguation
+												continue;
+											}
+											if(entitylink.contains("#")){
+												if ((entitylink.indexOf("#") != 0 ) && (entitylink.indexOf("#") != -1)){
+													entitylink = entitylink.substring(0, entitylink.indexOf("#"));
+												}
+											}
+											int spaceIndex = mention.indexOf("(");
+											if ((spaceIndex != 0 ) && (spaceIndex!=-1)){
+												mention = mention.substring(0, spaceIndex);
+											}
+											char[] entityLinkArray = entitylink.toCharArray();
+											if(entityLinkArray.length>0){
+												entityLinkArray[0] = Character.toUpperCase(entityLinkArray[0]);
+												entitylink = new String(entityLinkArray);
+												String mentionEntity = mention.trim() + " ; "+ entitylink.trim();
+												writer.println(mentionEntity);
+												mentionEntityPairs++;
+											}else{
+												continue;
 											}
 										}
-										int spaceIndex = mention.indexOf("(");
-										if ((spaceIndex != 0 ) && (spaceIndex!=-1)){
-										    mention = mention.substring(0, spaceIndex);
-										}
-										char[] entityLinkArray = entitylink.toCharArray();
-										if(entityLinkArray.length>0){
-											entityLinkArray[0] = Character.toUpperCase(entityLinkArray[0]);
-											entitylink = new String(entityLinkArray);
-											String mentionEntity = mention.trim() + " ; "+ entitylink.trim();
-											writer.println(mentionEntity);
-											mentionEntityPairs++;
-										}else{
-											continue;
-										}
 									}
-						}
-					}
+								}
 				}
 					}
 					}
