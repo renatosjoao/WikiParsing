@@ -9,7 +9,9 @@ package org.l3s;
  * 
  */
 import java.io.BufferedReader;
+import java.io.BufferedInputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
@@ -29,59 +31,33 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
 import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
+import org.apache.commons.compress.compressors.CompressorException;
+import org.apache.commons.compress.compressors.CompressorInputStream;
+import org.apache.commons.compress.compressors.CompressorStreamFactory;
 import org.codehaus.jackson.map.ObjectMapper;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.l3s.statistics.Statistics;
-
 import edu.jhu.nlp.wikipedia.PageCallbackHandler;
 import edu.jhu.nlp.wikipedia.WikiPage;
 import edu.jhu.nlp.wikipedia.WikiXMLParser;
 import edu.jhu.nlp.wikipedia.WikiXMLParserFactory;
 
 public class WikipediaSAXParser {
-	//private static Pattern categoryPattern = Pattern.compile("\\[\\["+ "Category" + ":(.*?)\\]\\]", Pattern.MULTILINE| Pattern.CASE_INSENSITIVE);
-	//private static Pattern OtherPattern = Pattern.compile("\\[\\[[A-Z]+:(.*?)\\]\\]", Pattern.MULTILINE	| Pattern.CASE_INSENSITIVE);
     private static Pattern stylesPattern = Pattern.compile("\\{\\|.*?\\|\\}$", Pattern.MULTILINE | Pattern.DOTALL);
-    //private static Pattern infoboxCleanupPattern = Pattern.compile("\\{\\{infobox.*?\\}\\}$", Pattern.MULTILINE | Pattern.DOTALL | Pattern.CASE_INSENSITIVE);
-    //private static Pattern curlyCleanupPattern0 = Pattern.compile("^\\{\\{.*?\\}\\}$", Pattern.MULTILINE | Pattern.DOTALL);
-    //private static Pattern curlyCleanupPattern1 = Pattern.compile("\\{\\{.*?\\}\\}", Pattern.MULTILINE | Pattern.DOTALL);
-	//private static Pattern curlyCleanupPattern0 = Pattern.compile("^\\{\\{.*?\\}\\}$", Pattern.MULTILINE | Pattern.DOTALL);
-	//private static Pattern curlyCleanupPattern1 = Pattern.compile("\\{\\{.*?\\}\\}", Pattern.MULTILINE | Pattern.DOTALL);
     private static Pattern refCleanupPattern = Pattern.compile("<ref>.*?</ref>", Pattern.MULTILINE | Pattern.DOTALL);
-	// private static Pattern cleanupPattern0 =// Pattern.compile("^\\[\\[.*?:.*?\\]\\]$", Pattern.MULTILINE |// Pattern.DOTALL);
-	// private static Pattern cleanupPattern1 =// Pattern.compile("\\[\\[(.*?)\\]\\]", Pattern.MULTILINE | Pattern.DOTALL);
-	//private static Pattern refCleanupPattern = Pattern.compile("<ref>.*?</ref>", Pattern.MULTILINE | Pattern.DOTALL);
-	//private static Pattern refCleanupPattern1 = Pattern.compile("<ref.*?>.*?</ref>", Pattern.MULTILINE | Pattern.DOTALL);
-	//private static Pattern refCleanupPattern1 = Pattern.compile("<ref.*?/.*?>", Pattern.MULTILINE | Pattern.DOTALL);
-	//private static Pattern refCleanupPattern2 = Pattern.compile("<ref.*?/>", Pattern.MULTILINE | Pattern.DOTALL);
-	//private static Pattern testtranslatedTitle = Pattern.compile("\\[\\[[a-z]+:(.*?)\\]\\]");
-	//private static Pattern translatedTitle = Pattern.compile("^\\[\\[[a-z-]+:(.*?)\\]\\]$", Pattern.MULTILINE);
     private static Pattern commentsCleanupPattern = Pattern.compile("<!--.*?-->", Pattern.MULTILINE | Pattern.DOTALL);
-    //private static Pattern htmlExtLinkPattern = Pattern.compile("\\[http:\\/\\/(.*?)\\]",Pattern.MULTILINE | Pattern.DOTALL);
-	// private static Pattern redirectPattern = Pattern.compile("#\\s*\\[\\[(.*?)\\]\\]", Pattern.CASE_INSENSITIVE);
 	private static Pattern redirectPattern = Pattern.compile("#REDIRECT.*\\[\\[(.*?)\\]\\]", Pattern.MULTILINE| Pattern.CASE_INSENSITIVE);
-	//private static final Pattern URL = Pattern.compile("http://[^ <]+");
-	//private static Pattern stubPattern = Pattern.compile("\\-\\}\\}",Pattern.CASE_INSENSITIVE);
-	//private static Pattern disambCatPattern = Pattern.compile("\\{\\{\\}\\}",Pattern.CASE_INSENSITIVE);
 	private static Pattern mentionEntityPattern = Pattern.compile("\\[\\[(.*?)\\]\\]", Pattern.MULTILINE);
-	//private static final Pattern LANG_LINKS = Pattern.compile("\\[\\[[a-z\\-]+:[^\\]]+\\]\\]");
-	//private static final Pattern DOUBLE_CURLY = Pattern.compile("\\{\\{.*?\\}\\}");
-	//private static final Pattern HTML_TAG = Pattern.compile("<[^!][^>]*>");
-	//private static Pattern namePattern = Pattern.compile("^[a-zA-Z_  -]*",Pattern.MULTILINE);
 	private static String pageTitles = "pagesTitles.txt";
 	private static String mentionEntityLinks = "mentionEntityLinks.txt";
-	private static PrintWriter writer = null;// new
-												// PrintWriter(mentionEntityLinks,"UTF-8");
-
+	private static PrintWriter writer = null;
 	private static int ENTITYPAGE = 0; 					//This is the total number of page titles, without ##REDIRECT
 	private static int TOTAL_PAGE_TITLE = 0;			    //This is the total number of page titles, no matter if it is REDIRECT, SPECIAL, etc
-	//				   TOTAL_PAGE_TITLE = REDIRECT_PAGE_TITLE + PAGE_TITLE
 	private static int REDIRECTION = 0;				         //This is the total number of #REDIRECT page titles.
 	private static int SPECIAL_PAGES =0;
 	private static int EMPTY_TITLE_PAGES;
@@ -111,6 +87,7 @@ public class WikipediaSAXParser {
 	 */
 	@SuppressWarnings("resource")
 	public static void main(String[] args) throws IOException, ParseException, org.json.simple.parser.ParseException {
+
 		/**
 		 *  * Initially I want to check if the page titles file exists. If it does not exist in the current directory. I will create it.
 		 */
@@ -1147,6 +1124,59 @@ public class WikipediaSAXParser {
 			Statistics st = new Statistics();
 			st.writeMentionEntityStatistics((stop - start) / 1000.0,mentionEntityPairs);
 
+	}
+
+
+	/**
+	 *
+	 * @param mentionEntityLinkSorted_Freq_Unique
+	 * @throws CompressorException
+	 * @throws IOException
+	 */
+	public static void writeLinkOccurrence(String mentionEntityLinkSorted_Freq_Unique) throws CompressorException, IOException{
+		BufferedReader bffReader = 	getBufferedReaderForCompressedFile(mentionEntityLinkSorted_Freq_Unique);
+		PrintWriter pWriter = new PrintWriter("linkOccurrenceCount.txt", "UTF-8");
+		TreeMap<String, Integer> linkTreeMap = new TreeMap<>();
+		String inpLine = null;
+		while((inpLine = bffReader.readLine()) != null) {
+			System.out.println(inpLine);
+			String[] words = inpLine.split(" ; ");
+			if(words.length>=3){
+
+				Integer linkCount = linkTreeMap.get(words[1]);
+				if (linkCount == null) {
+					linkTreeMap.put(words[1],Integer.parseInt(words[2]));
+				}else{
+					linkTreeMap.put(words[1],Integer.parseInt(words[2])+linkCount);
+				}
+			}
+		}
+		bffReader.close();
+
+		Iterator<?> it = linkTreeMap.entrySet().iterator();
+		while (it.hasNext()) {
+			@SuppressWarnings("rawtypes")
+			Map.Entry pair = (Map.Entry) it.next();
+			pWriter.println(pair.getKey().toString().trim() + " ; " + pair.getValue().toString().trim());
+			it.remove();
+		}
+		pWriter.flush();
+		pWriter.close();
+	}
+
+	/**
+	 *
+	 * @param fileIn
+	 * @return
+	 * @throws FileNotFoundException
+	 * @throws CompressorException
+	 */
+	public static BufferedReader getBufferedReaderForCompressedFile(String fileIn) throws FileNotFoundException, CompressorException {
+	    FileInputStream fin = new FileInputStream(fileIn);
+	    BufferedInputStream bis = new BufferedInputStream(fin);
+	    CompressorInputStream input = new CompressorStreamFactory().createCompressorInputStream(bis);
+	    BufferedReader br2 = new BufferedReader(new InputStreamReader(input));
+	    return br2;
 	}
 
 	/**
