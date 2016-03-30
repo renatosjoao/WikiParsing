@@ -18,6 +18,7 @@ import java.io.PrintWriter;
 import java.io.UnsupportedEncodingException;
 import java.net.MalformedURLException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -32,6 +33,7 @@ import java.util.regex.Pattern;
 import org.apache.commons.compress.compressors.CompressorException;
 import org.apache.commons.compress.compressors.CompressorInputStream;
 import org.apache.commons.compress.compressors.CompressorStreamFactory;
+import org.apache.commons.lang3.StringUtils;
 import org.codehaus.jackson.map.ObjectMapper;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
@@ -117,6 +119,57 @@ public class Utils {
 	 }
 
 	/**
+	 * This is a utility function to write only the top prior probability for each mention.
+	 *
+	 * @param inputFile
+	 * @param outputFile
+	 * @throws IOException
+	 * @throws CompressorException
+	 */
+	public void mentionEntityDisamb(String inputFile, String outputFile) throws IOException, CompressorException{
+		BufferedReader buffReader1 = getBufferedReaderForCompressedFile(inputFile);
+		TreeMap<String,HashMap<String,Double>> disambiguation = new TreeMap<>();
+		PrintWriter Pwriter = new PrintWriter(outputFile, "UTF-8");
+		String line = null;
+		while ((line = buffReader1.readLine()) != null) {
+			String[] elem = line.split(" ;-; ");
+			String currentMention = elem[0];
+			String currentEntity = elem[1];
+			Double currentPrior = Double.parseDouble(elem[2]);
+			HashMap<String,Double> tmpObj =  disambiguation.get(elem[0]);
+			if(tmpObj == null){
+				tmpObj = new HashMap<>();
+				tmpObj.put(currentMention, currentPrior);
+				disambiguation.put(currentMention,tmpObj);
+			}else{
+				Collection<Double> priors = tmpObj.values();
+				Object ob = priors.toArray()[0];
+				ob.toString();
+				if(currentPrior >=  Double.parseDouble(ob.toString())){
+					tmpObj =  new HashMap<>();
+					tmpObj.put(currentEntity, currentPrior);
+					disambiguation.put(currentMention, tmpObj);
+				}
+			}
+		}
+		buffReader1.close();
+		Iterator<?> it = disambiguation.entrySet().iterator();
+		while (it.hasNext()) {
+			@SuppressWarnings("rawtypes")
+			Map.Entry pair = (Map.Entry) it.next();
+			@SuppressWarnings("unchecked")
+			HashMap<String,Double> entityObj = (HashMap<String, Double>) pair.getValue();
+			Set<String> keys = entityObj.keySet();
+			Pwriter.println(pair.getKey() + " ;-; " + keys.toArray()[0].toString());
+			it.remove();
+		}
+		Pwriter.flush();
+		Pwriter.close();
+		Compressor cp = new Compressor();
+		cp.compressTxtBZ2(outputFile);
+	}
+
+	/**
 	 * Utility function to calculate the prior probability of mentions, entity
 	 * pairs
 	 * 
@@ -142,11 +195,12 @@ public class Utils {
 	 *
 	 * @param outputFile
 	 * @throws IOException
+	 * @throws CompressorException
 	 */
-	public  void calculatePRIOR(String inputFile, String outputFile)throws IOException {
+	public  void calculatePRIOR(String inputFile, String outputFile)throws IOException, CompressorException {
 		long start = System.currentTimeMillis();
-		BufferedReader buffReader1 = new BufferedReader(new FileReader(inputFile));// "mentionEntityLinks_SORTED_Freq.txt"
-		BufferedReader buffReader2 = new BufferedReader(new FileReader(inputFile));// "mentionEntityLinks_SORTED_Freq.txt"
+		BufferedReader buffReader1 = getBufferedReaderForCompressedFile(inputFile);// "mentionEntityLinks_SORTED_Freq.txt"
+		BufferedReader buffReader2 =  getBufferedReaderForCompressedFile(inputFile);// "mentionEntityLinks_SORTED_Freq.txt"
 		PrintWriter Pwriter = new PrintWriter(outputFile, "UTF-8"); // "mentionEntityLinks_PRIOR.txt"
 		String line1 = null;
 		String line2 = buffReader2.readLine();
@@ -154,8 +208,8 @@ public class Utils {
 		while ((line1 = buffReader1.readLine()) != null) {
 			line2 = buffReader2.readLine();
 			if (line2 != null) {
-				String[] elements1 = line1.split(" ; ");
-				String[] elements2 = line2.split(" ; ");
+				String[] elements1 = line1.split(" ;-; ");
+				String[] elements2 = line2.split(" ;-; ");
 				if (priorMap.isEmpty()) {
 					priorMap.put(elements1[1], 1.0);
 					if (!elements2[0].equalsIgnoreCase(elements1[0])) {
@@ -168,7 +222,7 @@ public class Utils {
 							@SuppressWarnings("rawtypes")
 							Map.Entry pair = (Map.Entry) it.next();
 							Double priorProb = (Double) pair.getValue() / sum;
-							Pwriter.println(elements1[0].trim() + " ; " + pair.getKey().toString().trim()+ " ; " + priorProb.toString().trim());
+							Pwriter.println(elements1[0].trim() + " ;-; " + pair.getKey().toString().trim()+ " ;-; " + priorProb.toString().trim());
 							it.remove();
 						}
 						priorMap = new HashMap<String, Double>();
@@ -197,7 +251,7 @@ public class Utils {
 							@SuppressWarnings("rawtypes")
 							Map.Entry pair = (Map.Entry) it.next();
 							Double priorProb = (Double) pair.getValue() / sum;
-							Pwriter.println(elements1[0].trim() + " ; " + pair.getKey().toString().trim()	+ " ; " + priorProb.toString().trim());
+							Pwriter.println(elements1[0].trim() + " ;-; " + pair.getKey().toString().trim()	+ " ;-; " + priorProb.toString().trim());
 							it.remove();
 						}
 						continue;
@@ -205,7 +259,7 @@ public class Utils {
 				}
 
 			} else {
-				String[] elements1 = line1.split(" ; ");
+				String[] elements1 = line1.split(" ;-; ");
 				if (priorMap.isEmpty()) {
 					priorMap.put(elements1[1], 1.0);
 					double sum = 0.0;
@@ -217,7 +271,7 @@ public class Utils {
 						@SuppressWarnings("rawtypes")
 						Map.Entry pair = (Map.Entry) it.next();
 						Double priorProb = (Double) pair.getValue() / sum;
-						Pwriter.println(elements1[0].trim() + " ; " + pair.getKey().toString().trim()	+ " ; " + priorProb.toString().trim());
+						Pwriter.println(elements1[0].trim() + " ;-; " + pair.getKey().toString().trim()	+ " ;-; " + priorProb.toString().trim());
 						it.remove();
 					}
 
@@ -238,7 +292,7 @@ public class Utils {
 						@SuppressWarnings("rawtypes")
 						Map.Entry pair = (Map.Entry) it.next();
 						Double priorProb = (Double) pair.getValue() / sum;
-						Pwriter.println(elements1[0].trim() + " ; " + pair.getKey().toString().trim()	+ " ; " + priorProb.toString().trim());
+						Pwriter.println(elements1[0].trim() + " ;-; " + pair.getKey().toString().trim()	+ " ;-; " + priorProb.toString().trim());
 					}
 				}
 			}
@@ -249,6 +303,8 @@ public class Utils {
 		Pwriter.close();
 
 		long stop = System.currentTimeMillis();
+		Compressor cp = new Compressor();
+		cp.compressTxtBZ2(outputFile);
 		System.out.println("Finished calculating prior probability in "	+ ((stop - start) / 1000.0) + " seconds.");
 
 	}
@@ -295,10 +351,11 @@ public class Utils {
 	 * @param pageTitles
 	 * @return
 	 * @throws IOException
+	 * @throws CompressorException
 	 */
-	public  Set<String> loadTitlesList(String pageTitles)	throws IOException {
+	public  Set<String> loadTitlesList(String pageTitles)	throws IOException, CompressorException {
 		Set<String> set = new TreeSet<String>(String.CASE_INSENSITIVE_ORDER);
-		BufferedReader bffReader = new BufferedReader(new FileReader(pageTitles));
+		BufferedReader bffReader = getBufferedReaderForCompressedFile(pageTitles);// new BufferedReader(new FileReader(pageTitles));
 		String inpLine = null;
 		while ((inpLine = bffReader.readLine()) != null) {
 			set.add(inpLine);
@@ -332,7 +389,10 @@ public class Utils {
 
 	/**
 	 *
-	 * @param mentionEntityLinkSorted_Freq_Unique
+	 *	This method is meant to write to disk the number of occurrences of each entity
+	 *
+	 *
+	 * @param mentionEntityLinkSorted_Freq_Unique mentionEntityLinks_SORTED_Freq_Uniq.txt.bz2
 	 * @throws CompressorException
 	 * @throws IOException
 	 */
@@ -342,8 +402,8 @@ public class Utils {
 		TreeMap<String, Integer> linkTreeMap = new TreeMap<>();
 		String inpLine = null;
 		while((inpLine = bffReader.readLine()) != null) {
-			System.out.println(inpLine);
-			String[] words = inpLine.split(" ; ");
+			//System.out.println(inpLine);
+			String[] words = inpLine.split(" ;-; ");
 			if(words.length>=3){
 
 				Integer linkCount = linkTreeMap.get(words[1]);
@@ -360,11 +420,13 @@ public class Utils {
 		while (it.hasNext()) {
 			@SuppressWarnings("rawtypes")
 			Map.Entry pair = (Map.Entry) it.next();
-			pWriter.println(pair.getKey().toString().trim() + " ; " + pair.getValue().toString().trim());
+			pWriter.println(pair.getKey().toString().trim() + " ;-; " + pair.getValue().toString().trim());
 			it.remove();
 		}
 		pWriter.flush();
 		pWriter.close();
+		Compressor cp = new Compressor();
+		cp.compressTxtBZ2("linkOccurrenceCount.txt");
 	}
 	/**
 	 * Calculate the frequency distribution given the original file with the
@@ -406,7 +468,7 @@ public class Utils {
 		PrintWriter pWriter = new PrintWriter(outputFile, "UTF-8");
 		String inpLine = null;
 		while ((inpLine = bffReader.readLine()) != null) {
-			String[] words = inpLine.split(" ; ");
+			String[] words = inpLine.split(" ;-; ");
 			if (words != null) {
 				double count = 0.0;
 				count = Double.parseDouble(words[2].trim());
@@ -434,16 +496,16 @@ public class Utils {
 	 *             i.e. ASA Hall of Fame Stadium; ASA Hall of Fame Stadium; 3
 	 *             ASA Hall of Fame Stadium; ASA; 3 ASA Hall of Fame Stadium;
 	 *             ASA Hall of Fame; 3
+	 * @throws CompressorException
 	 */
 
-	public  void frequencyCount(String inputFile, String outFile) throws IOException {
+	public  void frequencyCount(String inputFile, String outFile) throws IOException, CompressorException {
 		long start = System.currentTimeMillis();
-		FileReader fReader = new FileReader(new File(inputFile));
-		BufferedReader bffReader = new BufferedReader(fReader);
+		BufferedReader bffReader = getBufferedReaderForCompressedFile(inputFile);
 		String inpLine = null;
 		Map<String, Integer> frequency = new HashMap<String, Integer>();
 		while ((inpLine = bffReader.readLine()) != null) {
-			String[] words = inpLine.split(" ; ");
+			String[] words = inpLine.split(" ;-; ");
 			if (words.length >= 1) {
 				String key = words[0].trim();
 				if ((!key.isEmpty()) && (key != null) && (key != "")) {
@@ -456,29 +518,69 @@ public class Utils {
 			}
 		}
 		bffReader.close();
-		fReader.close();
 		PrintWriter pWriter = new PrintWriter(outFile, "UTF-8");
-		FileReader fRead = new FileReader(new File(inputFile));
-		BufferedReader buffReader = new BufferedReader(fRead);
+		BufferedReader buffReader = getBufferedReaderForCompressedFile(inputFile);
 		String inp = null;
-		while ((inp = buffReader.readLine()) != null) {
+		while ( (inp = buffReader.readLine()) != null) {
 
-			String[] keys = inp.split(" ; ");
+			String[] keys = inp.split(" ;-; ");
 			if (keys.length >= 1) {
 				String key = keys[0].trim();
-				if ((key != null) && (!key.isEmpty() && (key != ""))) {
+				if ((key != null) && (!key.isEmpty() && (key != " "))) {
 					Integer value = frequency.get(key);
-					pWriter.println(inp.trim() + " ; " + value.toString().trim());
+					pWriter.println(inp.trim() + " ;-; " + value.toString().trim());
 				}
 			}
 		}
 		buffReader.close();
-		fRead.close();
 		pWriter.flush();
 		pWriter.close();
 		long stop = System.currentTimeMillis();
+		Compressor cp = new Compressor();
+		cp.compressTxtBZ2(outFile);
 		System.out.println("Finished calculating the frequency count in "+ ((stop - start) / 1000.0) + " seconds.");
 
+	}
+
+	/**
+	 * This is a utility class to cut the mention/Entity file by frequency of mention as is done in the WIKIFY !
+	 *
+	 * It just takes as input  mentionEntityLinks_SORTED_Freq.txt.bz2 and cuts off
+	 * lines that show less than freq and the count of mentions.
+	 *
+	 * @param inputFile mentionEntityLinks_SORTED_Freq.txt.bz2
+	 * @param outFile
+	 * @param freq
+	 * @throws IOException
+	 * @throws CompressorException
+	 */
+	public void frequencyCut(String inputFile, String outFile, int freq)throws IOException, CompressorException{
+		BufferedReader bffReader = getBufferedReaderForCompressedFile(inputFile);
+		PrintWriter pWriter = new PrintWriter(outFile+"_"+freq+".txt", "UTF-8");
+		String inpLine = null;
+		while ((inpLine = bffReader.readLine()) != null) {
+			String[] words = inpLine.split(" ;-; ");
+			if(StringUtils.isNumeric(words[2].trim())){
+				if(Integer.parseInt(words[2].trim()) >=freq ){
+					pWriter.println(inpLine);
+					}else{
+							continue;
+					}
+			}else{ //try the next field
+				if(StringUtils.isNumeric(words[3].trim())){
+					if(Integer.parseInt(words[3].trim()) >=freq ){
+						pWriter.println(inpLine);
+						}else{
+								continue;
+						}
+				}
+			}
+		}
+		bffReader.close();
+		pWriter.flush();
+		pWriter.close();
+		Compressor cp = new Compressor();
+		cp.compressTxtBZ2(outFile+"_"+freq+".txt");
 	}
 
 	/**
@@ -491,18 +593,18 @@ public class Utils {
 	 * 
 	 *             i.e. ASA Hall of Fame Stadium; ASA Hall of Fame Stadium; 3
 	 *             ASA; ASA; 2
+	 * @throws CompressorException
 	 */
 
-	public  void frequencyCountUnique(String inputFile, String outFile) throws IOException {
+	public  void frequencyCountUnique(String inputFile, String outFile) throws IOException, CompressorException {
 		long start = System.currentTimeMillis();
-		FileReader fReader = new FileReader(new File(inputFile));
-		BufferedReader bffReader = new BufferedReader(fReader);
+		BufferedReader bffReader = getBufferedReaderForCompressedFile(inputFile);
 		String inpLine = null;
 		Map<String, Integer> frequency = new TreeMap<String, Integer>();
 		while ((inpLine = bffReader.readLine()) != null) {
-			String[] words = inpLine.split(" ; ");
+			String[] words = inpLine.split(" ;-; ");
 			if (words.length >= 1) {
-				String key_value = words[0].trim() + " ; " + words[1].trim();
+				String key_value = words[0].trim() + " ;-; " + words[1].trim();
 				if ((!key_value.isEmpty()) && (key_value != null) && (key_value != "")) {
 					Integer f = frequency.get(key_value);
 					if (f == null) {
@@ -513,19 +615,20 @@ public class Utils {
 			}
 		}
 		bffReader.close();
-		fReader.close();
 		PrintWriter pWriter = new PrintWriter(outFile, "UTF-8");
 		Iterator<?> it = frequency.entrySet().iterator();
 		while (it.hasNext()) {
 			@SuppressWarnings("rawtypes")
 			Map.Entry pair = (Map.Entry) it.next();
-			pWriter.println(pair.getKey().toString().trim() + " ; " + pair.getValue().toString().trim());
+			pWriter.println(pair.getKey().toString().trim() + " ;-; " + pair.getValue().toString().trim());
 			// treee.add(pair.getKey() + ";\t" +pair.getValue());
 			it.remove();
 		}
 		pWriter.flush();
 		pWriter.close();
 		long stop = System.currentTimeMillis();
+		Compressor cp = new Compressor();
+		cp.compressTxtBZ2(outFile);
 		System.out.println("Finished calculating the frequency count unique in " + ((stop - start) / 1000.0) + " seconds.");
 
 	}
@@ -548,32 +651,33 @@ public class Utils {
 	 * @param mentionEntityFile
 	 * @param titles
 	 * @throws IOException
+	 * @throws CompressorException
 	 */
-	public  void checkTitles(String mentionEntityFile,Set<String> titles, Map<String,String> treemap) throws IOException{
+	public  void checkTitles(String mentionEntityFile,Set<String> titles, Map<String,String> treemap) throws IOException, CompressorException{
 		long start = System.currentTimeMillis();
 		ArrayList<String> finalList = new ArrayList<String>();
-		BufferedReader bffReader = new BufferedReader(new FileReader(mentionEntityFile));
+		BufferedReader bffReader = getBufferedReaderForCompressedFile(mentionEntityFile);
 		PrintWriter notAMatchtFileWriter = new PrintWriter(new File("mentionEntityLinks_NOT_MATCHED.txt"));
 
 		String inLine = null;
 		while ((inLine = bffReader.readLine()) != null) {
-			String[] aM = inLine.split(" ; ");
+			String[] aM = inLine.split(" ;-; ");
 			if(treemap.containsKey(aM[1])){
 				if( (treemap.get(aM[1]) == " ") || (treemap.get(aM[1]).trim().length() == 0) ){
 					continue;
 				}else{
-					finalList.add(aM[0] + " ; " + treemap.get(aM[1]) );
+					finalList.add(aM[0] + " ;-; " + treemap.get(aM[1]) );
 					MATCH+=1;
 				}
 			}else{
-			if(titles.contains(aM[1])){
-				finalList.add(inLine);
-				MATCH+=1;
-			}else{
+				if(titles.contains(aM[1])){
+					finalList.add(inLine);
+					MATCH+=1;
+				}else{
 					NOMATCH++;
 					notAMatchtFileWriter.println(inLine);
+					}
 				}
-			}
 		}
 		notAMatchtFileWriter.flush();
 		notAMatchtFileWriter.close();
@@ -586,6 +690,11 @@ public class Utils {
 		outputFileWriter.flush();
 		outputFileWriter.close();
 		long stop = System.currentTimeMillis();
+
+		Compressor cp = new Compressor();
+		cp.compressTxtBZ2("mentionEntityLinks_SORTED.txt");
+		cp.compressTxtBZ2("mentionEntityLinks_NOT_MATCHED.txt");
+
 		Statistics st = new Statistics();
 		st.writeMentionEntityStatistics((stop - start) / 1000.0,MATCH, NOMATCH);
 
@@ -607,12 +716,12 @@ public class Utils {
 		String inLine = null;
 		while ((inLine = bffReader.readLine()) != null) {
 			total+=1;
-			String[] aM = inLine.split(" ; ");
+			String[] aM = inLine.split(" ;-; ");
 			if(treemap.containsKey(aM[1])){
 				if( (treemap.get(aM[1]) == " ") || (treemap.get(aM[1]).trim().length() == 0) ){
 					continue;
 				}else{
-					ptemp2File.println(aM[0]+" ; "+treemap.get(aM[1]));
+					ptemp2File.println(aM[0]+" ;-; "+treemap.get(aM[1]));
 					match+=1;
 				}
 			}
@@ -633,10 +742,9 @@ public class Utils {
 	 *									pagesTitles_REDIRECT.txt		// All the redirected pages titles
 	 *									pagesTitles.txt					// All the articles titles ( no special pages and no redirections )
 	 * @param XMLFile
-	 * @throws UnsupportedEncodingException
-	 * @throws FileNotFoundException
+	 * @throws IOException
 	 */
-	public void writePageTitles(String XMLFile)	throws FileNotFoundException, UnsupportedEncodingException {
+	public void writePageTitles(String XMLFile)	throws IOException {
 		long start = System.currentTimeMillis();
 		WikiXMLParser wxsp = null;
 		JSONArray Jarray = new JSONArray();
@@ -650,6 +758,7 @@ public class Utils {
 			wxsp.setPageCallback(new PageCallbackHandler() {
 				@SuppressWarnings("unchecked")
 				public void process(WikiPage page) {
+					String pageID = page.getID();
 					String pTitle = page.getTitle().replaceAll("_"," ").trim();
 					char[] pTitleArray = pTitle.trim().toCharArray();
 					if(pTitleArray.length>0){
@@ -661,7 +770,7 @@ public class Utils {
 						SPECIAL_PAGES++;
 						specialPagesTitlesList.add(pTitle);
 					}else{
-						allPagesTitlesList.add(pTitle); // allPagesTitlesList excludesSpecial pages
+						allPagesTitlesList.add(pTitle + " ;-; " + pageID ); // allPagesTitlesList excludesSpecial pages
 					if (pTitle.length() == 0 || (pTitle == " ")) {
 						EMPTY_TITLE_PAGES++;
 					}else{
@@ -689,6 +798,9 @@ public class Utils {
 											if ((redirectedTitle.indexOf("#") != 0 ) && (redirectedTitle.indexOf("#") !=-1)){
 											    redirectedTitle = redirectedTitle.substring( 0, redirectedTitle.indexOf("#") );
 											}
+										 }
+										 if(pTitle.contains("(disambiguation)") || (redirectedTitle.contains("(disambiguation)"))) { // disambiguation
+											 continue;
 										 }
 										 pageTitlesMap.put(pTitle, redirectedTitle);
 										 JSONObject jobj = new JSONObject();
@@ -754,7 +866,8 @@ public class Utils {
 		}
 		pagesTitlesWriter.flush();
 		pagesTitlesWriter.close();
-
+		Compressor cp = new Compressor();
+		cp.compressTxtBZ2("pagesTitles.txt");
 		//***************************************************************************************//
 
 		ObjectMapper jsonMapper = new ObjectMapper();
@@ -772,7 +885,6 @@ public class Utils {
 		specialPagesTitlesList.clear();
 		redirectPagesTitlesList.clear();
 		System.gc();
-
 		Statistics st = new Statistics();
 		st.writeTitlesStatistics(((stop - start) / 1000.0), SPECIAL_PAGES, REDIRECTION,DISAMBIGUATION_PAGE, ENTITYPAGE, duplicatePageTitle.size(),EMPTY_TITLE_PAGES,TOTAL_PAGE_TITLE);
 	}
@@ -782,10 +894,9 @@ public class Utils {
 	 *
 	 * @param inputFile
 	 * @param outputFile
-	 * @throws FileNotFoundException
-	 * @throws UnsupportedEncodingException
+	 * @throws IOException
 	 */
-	public void writeMentionEntity_NO_Checking(String inputFile, String outputFile) throws FileNotFoundException, UnsupportedEncodingException {
+	public void writeMentionEntity_NO_Checking(String inputFile, String outputFile) throws IOException {
 		long start = System.currentTimeMillis();
 		PrintWriter writer = new PrintWriter(outputFile, "UTF-8");
 		WikiXMLParser wxsp = null;
@@ -857,7 +968,7 @@ public class Utils {
 											if(entityLinkArray.length>0){
 												entityLinkArray[0] = Character.toUpperCase(entityLinkArray[0]);
 												entitylink = new String(entityLinkArray);
-												String mentionEntity = mention.trim() + " ; "+ entitylink.trim();
+												String mentionEntity = mention.trim() + " ;-; "+ entitylink.trim();
 												writer.println(mentionEntity);
 												mentionEntityPairs++;
 											}else{
@@ -877,18 +988,20 @@ public class Utils {
 			writer.flush();
 			writer.close();
 			long stop = System.currentTimeMillis();
-			PrintWriter duplicatePageTitlesWriter = new PrintWriter("pagesTitlesDuplicates.txt", "UTF-8");
-			Iterator<?> it = duplicatePageTitle.entrySet().iterator();
-			while (it.hasNext()) {
-				@SuppressWarnings("rawtypes")
-				Map.Entry pair = (Map.Entry) it.next();
-				if((int) pair.getValue() >= 2){
-					duplicatePageTitlesWriter.println(pair.getKey()+" : " +pair.getValue());
-				}
-				it.remove();
-			}
-			duplicatePageTitlesWriter.flush();
-			duplicatePageTitlesWriter.close();
+			Compressor cp = new Compressor();
+			cp.compressTxtBZ2(outputFile);
+			//PrintWriter duplicatePageTitlesWriter = new PrintWriter("pagesTitlesDuplicates.txt", "UTF-8");
+			//Iterator<?> it = duplicatePageTitle.entrySet().iterator();
+			//while (it.hasNext()) {
+			//	@SuppressWarnings("rawtypes")
+			//	Map.Entry pair = (Map.Entry) it.next();
+			//	if((int) pair.getValue() >= 2){
+			//		duplicatePageTitlesWriter.println(pair.getKey()+" : " +pair.getValue());
+			//	}
+			//	it.remove();
+			//}
+			//duplicatePageTitlesWriter.flush();
+			//duplicatePageTitlesWriter.close();
 			Statistics st = new Statistics();
 			st.writeMentionEntityStatistics((stop - start) / 1000.0,mentionEntityPairs);
 
@@ -900,6 +1013,8 @@ public class Utils {
 	 * they only select pages that had 50 links or more, therefore I am parsing a Wikipedia dump and only storing
 	 * pages that has more than 50 links.
 	 *
+	 * This method is NOT USED yet.
+	 *
 	 * @param inputFile
 	 * @param outputFile
 	 * @throws FileNotFoundException
@@ -907,6 +1022,7 @@ public class Utils {
 	 */
 	public  void writePagesLinksCount(String inputFile) throws FileNotFoundException, UnsupportedEncodingException {
 		PrintWriter writer = new PrintWriter("pageLinksCount.txt", "UTF-8");
+		ArrayList<String> pageLinksOut = new ArrayList<>();
 		WikiXMLParser wxsp = null;
 		try {
 			wxsp = WikiXMLParserFactory.getSAXParser(inputFile);
@@ -968,9 +1084,10 @@ public class Utils {
 												mention = mention.substring(0, spaceIndex);
 											}
 												linkCount++;
+												pageLinksOut.add(title + " ;-; " + entitylink);
 										}
 										if(linkCount >= 50 ){
-											writer.println(title + " ; " +linkCount);
+											writer.println(title + " ;-; " +linkCount);
 											linkCount = 0 ;
 										}
 									}
@@ -985,6 +1102,13 @@ public class Utils {
 			}
 			writer.flush();
 			writer.close();
+			Collections.sort(pageLinksOut);
+			PrintWriter pwriter = new PrintWriter(new File("pageLinksOut.txt"));
+			for(String s : pageLinksOut){
+				pwriter.println(s);
+			}
+			pwriter.flush();
+			pwriter.close();
 	}
 	/**
 	 * Function to write the mentions and the entities to disk
@@ -1052,7 +1176,7 @@ public class Utils {
 										//if(allPagesTitlesList.contains(entitylink)){
 										if(pagesTitlesList.contains(entitylink)){
 											//IN_TITLES_LIST++;
-											String mentionEntity = mention.trim() + " ; "+ entitylink.trim();
+											String mentionEntity = mention.trim() + " ;-; "+ entitylink.trim();
 											writer.println(mentionEntity);
 											//continue;
 											//}else{
@@ -1061,7 +1185,7 @@ public class Utils {
 										}else{ //if (pageTitlesMap.get(entitylink)!=null) {
 												String keyMapping = pageTitlesMap.get(entitylink);
 												if(keyMapping != null){
-													String mentionEntity = mention + " ; "+ keyMapping;
+													String mentionEntity = mention + " ;-; "+ keyMapping;
 													writer.println(mentionEntity);
 												}
 										}
@@ -1094,7 +1218,11 @@ public class Utils {
 		String text = wikiText.replaceAll("&gt;", ">");
 		text = text.replaceAll("&lt;", "<");
 		text = text.replaceAll("&quot;", "\"");
-		//text = text.replaceAll("&nbsp;", "");	
+		text = text.replaceAll("&amp;nbsp;"," ");
+		text = text.replaceAll("&amp;", "&");
+		text = text.replaceAll("&nbsp;", " ");
+		text = text.replaceAll("&ndash;", "-");
+		text = text.replaceAll("&hellip;", "...");
 		text = text.replaceAll("\"","").replaceAll("\'''","").replaceAll("\''","");
         text = commentsCleanupPattern.matcher(text).replaceAll("");
         text = stylesPattern.matcher(text).replaceAll("");
