@@ -20,7 +20,7 @@ public class Compressor {
 	 * @param inputFile
 	 * @throws IOException
 	 */
-	private void compressTxtBZ2(String inputFile) throws IOException {
+	public void compressTxtBZ2(String inputFile) throws IOException {
 		Process p = null;
 		try {
 			p = Runtime.getRuntime().exec("bzip2 " + inputFile);
