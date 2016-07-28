@@ -76,7 +76,11 @@
 			<artifactId>stanford-corenlp</artifactId>
 			<version>3.6.0</version>
 		</dependency>
-
+		<dependency>
+			<groupId>org.apache.commons</groupId>
+			<artifactId>commons-math3</artifactId>
+			<version>3.2</version>
+		</dependency>
 
 		<dependency>
 			<groupId>com.googlecode.json-simple</groupId>
