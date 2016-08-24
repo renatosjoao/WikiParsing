@@ -33,6 +33,7 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
 import org.apache.commons.compress.compressors.CompressorException;
 import org.apache.commons.compress.compressors.CompressorInputStream;
 import org.apache.commons.compress.compressors.CompressorStreamFactory;
@@ -41,7 +42,10 @@ import org.codehaus.jackson.map.ObjectMapper;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
+import org.json.simple.parser.ParseException;
+import org.l3s.Prior.PriorOnlyModel;
 import org.l3s.statistics.Statistics;
+
 import edu.jhu.nlp.wikipedia.PageCallbackHandler;
 import edu.jhu.nlp.wikipedia.WikiPage;
 import edu.jhu.nlp.wikipedia.WikiXMLParser;
@@ -177,10 +181,10 @@ public class Utils {
 
 	/**
 	 * This function compares the mention/entity pairs top K
-	 * @param inputFile1
-	 * @param pageTitles1
-	 * @param inputFile2
-	 * @param pageTitles2
+	 * @param inputFile1 			mentionEntity file 1
+	 * @param pageTitles1 			page titles file1
+	 * @param inputFile2			mentionEntity file 2
+	 * @param pageTitles2			page titles file2
 	 * @throws IOException
 	 * @throws CompressorException
 	 */
@@ -1900,8 +1904,7 @@ public class Utils {
 					String title = page.getTitle().trim();
 					Matcher mRedirect = redirectPattern.matcher(wikitext);
 					if (ut.isSpecial(title)) {
-						// DO NOTHING if it is a Special Page ! Special pages
-						// are pages such as Help: , Wikipedia:, User: pages
+						// DO NOTHING if it is a Special Page ! Special pages  are pages such as Help: , Wikipedia:, User: pages
 						// DO NOTHING if it is an empty page title.
 
 						// 1.counting the mention/entity from disambiguation
@@ -2063,6 +2066,171 @@ public class Utils {
 		cp.compressTxtBZ2(outputFile+"_SINGLETON");
 	}
 
+	/**
+	 * This utility function is meant to calculate a dominance measure.
+	 * It takes as input the mentionEntity_top5_2006 , the pageTitles from 2006, the mentionEntiity_top5_2016 and the pageTitles 2016
+	 *
+	 * @param inputFile1
+	 * @param pageTitles1
+	 * @param inputFile2
+	 * @param pageTitles2
+	 * @throws CompressorException
+	 * @throws IOException
+	 */
+	public void calculateDominance(String inputFile1, String pageTitles1, String inputFile2, String pageTitles2) throws CompressorException, IOException{
+		HashMap<String,LinkedList<String>> mentionMap1 = new HashMap<>(); //map to store a mention and list of top5 disambiguations
+		HashMap<String,LinkedList<String>> mentionMap2 = new HashMap<>(); //map to store a mention and list of top5 disambiguations
+		TreeMap<String,String> pageTitlesMap1 = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);   //map to store the Entities and entities page ids
+		TreeMap<String,String> pageTitlesMap2 = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);	//map to store the Entities and entities page ids
+		PrintWriter writerDom = new PrintWriter("./resource/dominance_2008_2014.tsv", "UTF-8");
+		BufferedReader bfR1 = getBufferedReaderForCompressedFile(pageTitles1);		//Here I am only reading the page titles list and adding to the pageTitlesMap1 that contains the entity and the entityID
+		String l = bfR1.readLine();
+		int x = 0;
+		while((l = bfR1.readLine()) != null ){
+			Charset.forName("UTF-8").encode(l);
+			x++;
+			String temp[] = l.split(" \t ");
+			String entity = temp[0].trim();
+			String entityID = temp[1].trim();
+			pageTitlesMap1.put(entity, entityID);
+		}
+		bfR1.close();
+		System.out.println("Num. page titles from "+pageTitles1+"\t : "+x);
+
+		BufferedReader bfR2 = getBufferedReaderForCompressedFile(pageTitles2); 		//Here I am only reading the page titles list and adding to the pageTitlesMap2 that contains the entity and the entityID
+		String l2 = bfR2.readLine();
+		int y =0;
+		while((l2 = bfR2.readLine()) != null ){
+			Charset.forName("UTF-8").encode(l2);
+			y++;
+			String temp[] = l2.split(" \t ");
+			String entity = temp[0].trim();
+			String entityID = temp[1].trim();
+			pageTitlesMap2.put(entity, entityID);
+		}
+		bfR2.close();
+		System.out.println("Num. page titles from "+pageTitles2+"\t : "+y);
+
+		BufferedReader buffReader1 = getBufferedReaderForCompressedFile(inputFile1);
+		String line1 = null;
+		int linefile1 = 0;
+		while ((line1 = buffReader1.readLine()) != null) {
+			linefile1++;
+			Charset.forName("UTF-8").encode(line1);
+			String[] tempSplit = line1.split(" ;-; ");
+			String mention1 = tempSplit[0].trim();
+			String entity1 = tempSplit[1].trim();
+			String prior1  = tempSplit[2].trim();
+
+			String EID1 = pageTitlesMap1.get(entity1);
+
+			if((EID1==null) || (EID1=="")){// This case the pageTitles list does not have the page ID therefore I am not interested.
+				//System.out.println(mention1 + " ===: " + entity1);
+				//entityDoesNotExist++;
+				continue;
+			}else{
+
+			LinkedList<String> tempList1 = mentionMap1.get(mention1);
+
+			if(tempList1 == null){
+				//z++;
+				tempList1 = new LinkedList<>();
+				tempList1.add(entity1+" :=: "+prior1);
+				mentionMap1.put(mention1, tempList1);
+			}else{
+				//noz++;
+				tempList1.add(entity1+" :=: "+prior1);
+				mentionMap1.put(mention1, tempList1);
+			}
+			}
+		}
+
+		buffReader1.close();
+
+
+		int linefile2 = 0;
+		BufferedReader buffReader2 = getBufferedReaderForCompressedFile(inputFile2);
+		String line2 = null;
+		while ((line2 = buffReader2.readLine()) != null) {
+			linefile2++;
+			Charset.forName("UTF-8").encode(line2);
+			String[] tempSplit = line2.split(" ;-; ");
+			String mention2 = tempSplit[0].trim();
+			String entity2 = tempSplit[1].trim();
+			String prior2  = tempSplit[2].trim();
+			String EID2 = pageTitlesMap2.get(entity2);
+			if((EID2==null) || (EID2 == "") ){ // This case the pageTitles list does not have the page ID
+				//System.out.println(mention2 + " ===: " + entity2);
+				//entityDoesNotExist++;
+				continue;
+			}else{
+				//y++;
+			//checking whether the Map has the mention from the second list
+			LinkedList<String> tempList2 = mentionMap2.get(mention2);
+			if(tempList2 == null){
+				tempList2 = new LinkedList<>();
+				tempList2.add(entity2+" :=: "+prior2);
+				mentionMap2.put(mention2, tempList2);
+			}else{
+				tempList2.add(entity2+" :=: "+prior2);
+				mentionMap2.put(mention2, tempList2);
+			}
+			}
+		}
+		buffReader2.close();
+
+		int commomMention =0;
+		for(Map.Entry<String,LinkedList<String>> entry : mentionMap1.entrySet()) {//while there is an entry in the map created from the first Wikipedia dump
+			  String keyMention1 = entry.getKey();
+			  String keyMention2 = keyMention1;
+			  LinkedList<String> valueEntities1 = mentionMap1.get(keyMention1);
+			  LinkedList<String> valueEntities2 = mentionMap2.get(keyMention2);
+
+
+			  if((valueEntities1!=null) && (valueEntities2 != null)) { // It means that the mention exists in both map files.
+				  commomMention++;
+				  if((valueEntities1.size()>=2) && (valueEntities2.size()>=2)){
+					  String ersteEntityFromList1 = valueEntities1.get(0).split(" :=: ")[0].trim();
+					  String ersteEntityID1 = pageTitlesMap1.get(ersteEntityFromList1);
+					  double ersteEntityPriorFromList1 = Double.parseDouble(valueEntities1.get(0).split(" :=: ")[1].trim());
+					  String zweiteEntityFromList1 = valueEntities1.get(1).split(" :=: ")[0].trim();
+					  String zweiteEntityID1 = pageTitlesMap1.get(zweiteEntityFromList1);
+					  double zweiteEntityPriorFromList1 = Double.parseDouble(valueEntities1.get(1).split(" :=: ")[1].trim());
+
+					  String ersteEntityFromList2 = valueEntities2.get(0).split(" :=: ")[0].trim();
+					  double ersteEntityPriorFromList2 = Double.parseDouble(valueEntities2.get(0).split(" :=: ")[1].trim());
+					  String ersteEntityID2 = pageTitlesMap2.get(ersteEntityFromList2);
+					  String zweiteEntityFromList2 = valueEntities2.get(1).split(" :=: ")[0].trim();
+					  String zweiteEntityID2 = pageTitlesMap2.get(zweiteEntityFromList2);
+					  double zweiteEntityPriorFromList2 = Double.parseDouble(valueEntities2.get(1).split(" :=: ")[1].trim());
+					  double delta1 = ersteEntityPriorFromList1 - zweiteEntityPriorFromList1;
+					  double delta2 = ersteEntityPriorFromList2 - zweiteEntityPriorFromList2;
+					  double dominance;
+					  double normDelta1 = delta1/ersteEntityPriorFromList1;
+					  //System.out.println(normDelta1);
+					  double normDelta2 = delta2/ersteEntityPriorFromList2;
+					  //System.out.println(normDelta2);
+
+					  if(( ersteEntityFromList1.equals(ersteEntityFromList2) ) || (ersteEntityID1.equals(ersteEntityID2)) ){
+						 dominance = normDelta2 - normDelta1;
+					  }else{
+						  dominance = normDelta2 + normDelta1;
+					  }
+					  writerDom.println(keyMention1 + "\t" +dominance);
+					  //System.out.println(keyMention1 + " : " +dominance);
+
+				  }else{
+					  continue;
+				  }
+			}else{
+			  //mention does not exist in both maps.
+			}
+		} // for end !
+		writerDom.flush();
+		writerDom.close();
+		System.out.println("Commom mentions between ["+inputFile1+"] and \n ["+inputFile2+"] = "+commomMention);
+	}
+/**********************************************************************************************************/
 	/**
 	 * This function is meant to calculate Ranking ( Spearman , Kendall tau )
 	 *
@@ -2318,6 +2486,161 @@ public class Utils {
 			}
 		//********************************************************************************************//
 		writerKendall.close();
+	}
+
+
+
+	/**
+	 *
+	 * @param mentionEntity1
+	 * @param pageTitles1
+	 * @param titlesRedirection1
+	 * @param mentionEntity2
+	 * @param pageTitles2
+	 * @param titlesRedirection2
+	 * @throws IOException
+	 * @throws CompressorException
+	 * @throws ParseException
+	 */
+	public void compareUnambiguous(String mentionEntity1, String pageTitles1, String titlesRedirection1, String mentionEntity2, String pageTitles2,String titlesRedirection2) throws IOException, CompressorException, ParseException{
+		BufferedReader buffReader1 = getBufferedReaderForCompressedFile(mentionEntity1);
+		//BufferedReader buffReader2 = new BufferedReader(new FileReader(new File(inputFile2)));
+		BufferedReader buffReader2 = getBufferedReaderForCompressedFile(mentionEntity2);
+
+		HashMap<String,LinkedList<String>> mentionMap1 = new HashMap<>(); //map to store a mention and list of top5 disambiguations
+		HashMap<String,LinkedList<String>> mentionMap2 = new HashMap<>(); //map to store a mention and list of top5 disambiguations
+
+		PriorOnlyModel POM  = new PriorOnlyModel();
+		Map<String, String> titlesRedMap1 = POM.loadTitlesRedirectMap(titlesRedirection1);
+		Map<String, String> titlesRedMap2 = POM.loadTitlesRedirectMap(titlesRedirection2);
+
+		TreeMap<String,String> pageTitlesMap1 = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);   //map to store the Entities and entities page ids
+		TreeMap<String,String> pageTitlesMap2 = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);	//map to store the Entities and entities page ids
+
+		BufferedReader bfR1 = getBufferedReaderForCompressedFile(pageTitles1);
+		String l = bfR1.readLine();
+		while((l = bfR1.readLine()) != null ){
+			Charset.forName("UTF-8").encode(l);
+			String temp[] = l.split(" \t ");
+			String entity = temp[0].trim();
+			String entityID = temp[1].trim();
+			pageTitlesMap1.put(entity, entityID);
+		}
+		bfR1.close();
+		BufferedReader bfR2 = getBufferedReaderForCompressedFile(pageTitles2);
+		String l2 = bfR2.readLine();
+		while((l2 = bfR2.readLine()) != null ){
+			Charset.forName("UTF-8").encode(l2);
+			String temp[] = l2.split(" \t ");
+			String entity = temp[0].trim();
+			String entityID = temp[1].trim();
+			pageTitlesMap2.put(entity, entityID);
+		}
+		bfR2.close();
+
+		//Here I am reading the mention/entity file 1 and adding the entities to a hashmap
+		String line1 = null;
+		while ((line1 = buffReader1.readLine()) != null) {
+			Charset.forName("UTF-8").encode(line1);
+			String[] tempSplit = line1.split(" ;-; ");
+			String mention1 = tempSplit[0].trim();
+			String entity1 = tempSplit[1].trim();
+			LinkedList<String> tempList1 = mentionMap1.get(mention1);
+			if(tempList1 == null){
+				tempList1 = new LinkedList<>();
+				tempList1.add(entity1);
+				mentionMap1.put(mention1, tempList1);
+			}else{
+				tempList1.add(entity1);
+				mentionMap1.put(mention1, tempList1);
+				}
+			}
+		buffReader1.close();
+
+		//Here I am reading the mention/entity 2 file and adding the entities to a hashmap
+		String line2 = null;
+		while ((line2 = buffReader2.readLine()) != null) {
+			Charset.forName("UTF-8").encode(line2);
+			String[] tempSplit = line2.split(" ;-; ");
+			String mention2 = tempSplit[0].trim();
+			String entity2 = tempSplit[1].trim();
+			String prior2  = tempSplit[2].trim();
+			String EID2 = pageTitlesMap2.get(entity2);
+			LinkedList<String> tempList2 = mentionMap2.get(mention2);
+			if(tempList2 == null){
+				tempList2 = new LinkedList<>();
+				tempList2.add(entity2);
+				mentionMap2.put(mention2, tempList2);
+			}else{
+				tempList2.add(entity2);
+				mentionMap2.put(mention2, tempList2);
+				}
+			}
+		buffReader2.close();
+		int mentionInCommon = 0;
+		for(Map.Entry<String,LinkedList<String>> entry : mentionMap1.entrySet()) {
+			String keyMention1 = entry.getKey();
+			String keyMention2 = keyMention1;
+			// Considering the mention from Map1 is also present in Map2
+			if(mentionMap2.containsKey(keyMention1)){
+				mentionInCommon++;
+				//getting the list of entities for Mention1
+				LinkedList<String> listEntities1 = (LinkedList<String>) mentionMap1.get(keyMention1);
+				int list1Size = listEntities1.size();
+
+				// getting the list of entities from Mention 2
+				LinkedList<String> listEntities2 = (LinkedList<String>) mentionMap2.get(keyMention2);
+				int list2Size = listEntities2.size();
+
+				for(String entity1 : listEntities1){
+					String EID1 = pageTitlesMap1.get(entity1);
+					if((EID1==null) || (EID1=="")){
+						break;
+					}
+					for(String entity2 : listEntities2){
+						String EID2 = pageTitlesMap2.get(entity2);
+						if((EID2==null) || (EID2=="")){
+							break;
+						}
+						if( (entity1.equalsIgnoreCase(entity2) ) ||  (EID1.equalsIgnoreCase(EID2)) ){
+							//entityNOTChanged++;
+						}else{
+							//checking redirections
+							String redirectedEntity = titlesRedMap1.get(entity1);
+							//if ((redirectedEntity != null) && (redirectedEntity.equalsIgnoreCase(entity1))) {
+								//truePositive++;
+							//	break;
+							//}
+							if ((redirectedEntity != null) && (redirectedEntity.equalsIgnoreCase(entity2))) {
+								break;
+							}
+							redirectedEntity = titlesRedMap1.get(entity2);
+							if ((redirectedEntity != null) && (redirectedEntity.equalsIgnoreCase(entity1))) {
+								//truePositive++;
+								break;
+							}
+							//if ((redirectedEntity != null) && (redirectedEntity.equalsIgnoreCase(entity2))) {
+								//truePositive++;
+								//System.out.println(mentionGT + "\t" + entityGT +"\t "+ entityWIKI);
+							//	break;
+							redirectedEntity = titlesRedMap2.get(entity1);
+							if ((redirectedEntity != null) && (redirectedEntity.equalsIgnoreCase(entity2))) {
+								break;
+							}
+							redirectedEntity = titlesRedMap2.get(entity2);
+							if ((redirectedEntity != null) && (redirectedEntity.equalsIgnoreCase(entity1))) {
+								break;
+							}else{
+									System.out.println("M :"+keyMention1 + "\t E :"+entity1 + "\t E :"+entity2);
+									break;
+								}
+						}
+					}
+				}
+			}else{
+				continue;
+			}
+		}
 	}
 
 	/**
