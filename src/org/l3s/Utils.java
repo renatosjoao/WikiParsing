@@ -108,6 +108,13 @@ public class Utils {
 		outputFileWriter.close();
 	}
 
+	/**
+	 *
+	 *
+	 * @param pageTitlesMap2
+	 * @param value
+	 * @return
+	 */
 	public String containsValue(Map<String, List<String>> pageTitlesMap2, String value) {
 		Iterator<?> it = pageTitlesMap2.entrySet().iterator();
 		while (it.hasNext()) {
@@ -125,8 +132,7 @@ public class Utils {
 	}
 
 	/**
-	 * This is a utility function to write only the top prior probability for
-	 * each mention.
+	 * This is a utility function to write only the top prior probability for each mention.
 	 *
 	 * Do not forget that currently I wrote TOP prior probability for mentions
 	 * that occurred at least 10 times.
@@ -180,7 +186,9 @@ public class Utils {
 	}
 
 	/**
-	 * This function compares the mention/entity pairs top K
+	 * This function compares the mention/entity pairs top K changes  !!!
+	 *
+	 *
 	 * @param inputFile1 			mentionEntity file 1
 	 * @param pageTitles1 			page titles file1
 	 * @param inputFile2			mentionEntity file 2
@@ -210,7 +218,7 @@ public class Utils {
 			pageTitlesMap1.put(entity, entityID);
 		}
 		bfR1.close();
-		System.out.println("Number of page titles from pageTitles file "+pageTitles1+" : "+x);
+		//System.out.println("Number of page titles from pageTitles file "+pageTitles1+" : "+x);
 
 		//Here I am only reading the page titles list and adding to the pageTitlesMap2 that contains the entity and the entityID
 		//BufferedReader bfR2 = new BufferedReader(new FileReader(new File(pageTitles2)));// getBufferedReaderForCompressedFile(pageTitles2);
@@ -225,7 +233,7 @@ public class Utils {
 			pageTitlesMap2.put(entity, entityID);
 		}
 		bfR2.close();
-		System.out.println("Number of page titles from pageTitles file "+pageTitles2+" : "+y);
+		//System.out.println("Number of page titles from pageTitles file "+pageTitles2+" : "+y);
 
 		int newMention = 0 ;
 		int top5EntityChange = 0;
@@ -341,7 +349,7 @@ public class Utils {
 			  String entityFromList2 = valueEntities2.get(0).split(" :=: ")[0].trim();
 			  String EntID2 = pageTitlesMap2.get(entityFromList2).trim();
 
-				if ( (entityFromList1.equals(entityFromList2)) || (EntID1.equalsIgnoreCase(EntID2)) ){ //The disambiguation entity has not changed. We are happy !!!
+				if ( (entityFromList1.equalsIgnoreCase(entityFromList2)) || (EntID1.equalsIgnoreCase(EntID2)) ){ //The disambiguation entity has not changed. We are happy !!!
 					double prior_before = Double.parseDouble(valueEntities1.get(0).split(" :=: ")[1].trim());
 					double prior_after = Double.parseDouble(valueEntities2.get(0).split(" :=: ")[1].trim());
 					Pwriter.println("MENTION="+keyMention1+ "\tE_BEF="+valueEntities1.get(0)+"\t"+"E_ID:" + EntID1 +"\tE_AFTER="+valueEntities2.get(0)+"\t"+"E_ID:" + EntID2 + "\tMAD:"+Math.abs((prior_before-prior_after)/2));
@@ -400,7 +408,7 @@ public class Utils {
 			}
 		}
 		buffReader1.close();
-		System.out.println("Number of different mentions in Map 1 (top5) :"+newMention);
+		//System.out.println("Number of different mentions in Map 1 (top5) :"+newMention);
 
 		entityDoesNotExist=0;
 		newMention=0;
@@ -432,10 +440,10 @@ public class Utils {
 			}
 		}
 		buffReader2.close();
-		System.out.println("Number of different mentions in Map 2 (top5) :"+newMention);
+		//System.out.println("Number of different mentions in Map 2 (top5) :"+newMention);
 
 		PrintWriter Pwriter3 = new PrintWriter("./resource/comparison_Results_NOTchanged_top5", "UTF-8");
-		PrintWriter Pwriter4= new PrintWriter("./resource/comparison_Results_changed_top5", "UTF-8");
+		//PrintWriter Pwriter4= new PrintWriter("./resource/comparison_Results_changed_top5", "UTF-8");
 		PrintWriter Pwriter5 = new PrintWriter("./resource/comparison_Results_changed_0", "UTF-8");
 		PrintWriter Pwriter6 = new PrintWriter("./resource/comparison_Results_changed_5", "UTF-8");
 
@@ -464,7 +472,7 @@ public class Utils {
 				// getting the list of entities from Mention 2
 				LinkedList<String> listEntities2 = (LinkedList<String>) mentionMap2.get(keyMention2);
 
-				int list2Size = listEntities2.size(); // getting the size of the list of entities in the map entry for the mention key1
+				int list2Size = listEntities2.size(); // getting the size of the list of entities in the map entry for the mention key1=key2
 				int counter = 0;
 				for (int i=0; i < list1Size; i++){ //***//
 					String entityANDprior1 = listEntities1.get(i);
@@ -479,7 +487,7 @@ public class Utils {
 						String EID1 = pageTitlesMap1.get(entity1only).trim();
 						String EID2 = pageTitlesMap2.get(entity2only).trim();
 
-						if( (entity2only.equals(entity1only) ) || (EID1.equals(EID2))  ){
+						if( (entity2only.equalsIgnoreCase(entity1only) ) || (EID1.equalsIgnoreCase(EID2))  ){
 							gotIt = true; //this means the second map has the entity from the first map. The entity names have not changed.
 							Pwriter3.println("MENTION="+keyMention1+"\tE_BEF="+entity1only+":"+prior1only+"\t"+"E_ID:" + pageTitlesMap1.get(entity1only)+"\tPOS="+(i+1)+"\tE_AFTER ="+entity2only+":"+prior2only+"\t"+"E_ID:" + pageTitlesMap2.get(entity2only) + "\tPOS="+(j+1)+"\tRATIO:"+Math.abs((prior1only-prior2only)/2));
 							break;
@@ -621,7 +629,7 @@ public class Utils {
 				lineCountFile1++;
 				treeMapME1.put(mention, entity+" :=: "+prior);
 			}else{
-				System.out.println(entity);
+				//System.out.println(entity);
 			}
 		}
 		buffReader1.close();
@@ -657,7 +665,7 @@ public class Utils {
 					Pwriter.println("MENTION = "+current_mention+ " \t E_BEF = "+valueFromMap1.split(" :=: ")[0].trim()+":"+prior_before+" \t "+"E_ID:" + pageTitlesMap1.get(entityFromList1) +" \t E_AFTER = "+current_entity+":"+prior_after+" \t "+"E_ID:" + pageTitlesMap2.get(current_entity) + " \t RATIO:"+prior_before/prior_after);
 					priorRatesNOTChanged.add(prior_before/prior_after);
 					//The disambiguation entity has changed.  Has it changed to another entity or has it only changed to a new naming ?
-					 // Let's compare entity page IDs
+					// Let's compare entity page IDs
 				}else if(EntID1.trim().equalsIgnoreCase(EntID2.trim())){ // the entity has only changed to a new name, but it is the same Entity as the IDs match.
 						entityNotChanged++;
 						double prior_before = Double.parseDouble(valueFromMap1.split(" :=: ")[1].trim());
@@ -675,7 +683,7 @@ public class Utils {
 			}else{
 				mentionOut++; 	// The current mention from the second list is NOT present in the first list ( treeMapME1 )
 								// This is the case where the mention/entity does not exist in the first list. Therefore a new mention/entity pair was created in the second list.
-				//System.out.println("mention : " +current_mention);
+								//System.out.println("mention : " +current_mention);
 			}
 			}else{
 				continue;
@@ -1063,6 +1071,7 @@ public class Utils {
 		return set;
 	}
 
+
 	/**
 	 *
 	 * @param titlesMapJson
@@ -1070,8 +1079,7 @@ public class Utils {
 	 * @throws org.json.simple.parser.ParseException
 	 * @throws IOException
 	 */
-	public Map<String, String> loadTitlesRedirectMap(String titlesMapJson)
-			throws org.json.simple.parser.ParseException, IOException {
+	public Map<String, String> loadTitlesRedirectMap(String titlesMapJson) throws org.json.simple.parser.ParseException, IOException {
 		Map<String, String> TitlesMap = new TreeMap<String, String>();
 		FileReader reader = new FileReader(titlesMapJson);
 		JSONParser parser = new JSONParser();
@@ -1247,14 +1255,11 @@ public class Utils {
 	}
 
 	/**
-	 * This is a utility class to cut the mention/Entity file by frequency of
-	 * mention as is done in the WIKIFY !
+	 * This is a utility class to cut the mention/Entity file by frequency of mention as is done in the WIKIFY !
 	 *
-	 * It just takes as input mentionEntityLinks_SORTED_Freq.txt.bz2 and cuts
-	 * off lines that show less than freq and the count of mentions.
+	 * It just takes as input mentionEntityLinks_SORTED_Freq.txt.bz2 and cuts off lines that show less than freq and the count of mentions.
 	 *
-	 * @param inputFile
-	 *            mentionEntityLinks_SORTED_Freq.txt.bz2
+	 * @param inputFile  mentionEntityLinks_SORTED_Freq.txt.bz2
 	 * @param outFile
 	 * @param freq
 	 * @throws IOException
@@ -1352,8 +1357,7 @@ public class Utils {
 		long stop = System.currentTimeMillis();
 		Compressor cp = new Compressor();
 		cp.compressTxtBZ2(outFile);
-		System.out.println(
-				"Finished calculating the frequency count unique in " + ((stop - start) / 1000.0) + " seconds.");
+		System.out.println("Finished calculating the frequency count unique in " + ((stop - start) / 1000.0) + " seconds.");
 
 	}
 
@@ -1588,31 +1592,30 @@ public class Utils {
 		cp.compressTxtBZ2("pageTitles_ALL.tsv");
 		// ***************************************************************************************//
 		// Writing all pages titles with REDIRECT to output file "pagesTitles_REDIRECT.tsv"
-		PrintWriter allRedirPagesTitlesWriter = new PrintWriter("pagesTitles_REDIRECT.tsv", "UTF-8");
-		Collections.sort(redirectPagesTitlesList);
-		allRedirPagesTitlesWriter.println("<<< Total number of redirected pages: " + REDIRECTION + " >>>");
-		for (String title : redirectPagesTitlesList) {
-			allRedirPagesTitlesWriter.println(title);
-		}
-		allRedirPagesTitlesWriter.flush();
-		allRedirPagesTitlesWriter.close();
-		cp.compressTxtBZ2("pagesTitles_REDIRECT.tsv");
+		//PrintWriter allRedirPagesTitlesWriter = new PrintWriter("pagesTitles_REDIRECT.tsv", "UTF-8");
+		//Collections.sort(redirectPagesTitlesList);
+		//allRedirPagesTitlesWriter.println("<<< Total number of redirected pages: " + REDIRECTION + " >>>");
+		//for (String title : redirectPagesTitlesList) {
+		//	allRedirPagesTitlesWriter.println(title);
+		//}
+		//allRedirPagesTitlesWriter.flush();
+		//allRedirPagesTitlesWriter.close();
+		//cp.compressTxtBZ2("pagesTitles_REDIRECT.tsv");
 		// ***************************************************************************************//
 		// Writing ONLY SPECIAL pages titles to output file
 		// "pageTitles_SPECIAL.tsv"
-		PrintWriter specialPagesTitlesWriter = new PrintWriter("pagesTitles_SPECIAL.tsv", "UTF-8");
-		Collections.sort(specialPagesTitlesList);
-		specialPagesTitlesWriter.println("<<< Number of special pages titles: " + SPECIAL_PAGES + " >>>");
-		for (String title : specialPagesTitlesList) {
-			specialPagesTitlesWriter.println(title);
-		}
-		specialPagesTitlesWriter.flush();
-		specialPagesTitlesWriter.close();
-		cp.compressTxtBZ2("pagesTitles_SPECIAL.tsv");
+		//PrintWriter specialPagesTitlesWriter = new PrintWriter("pagesTitles_SPECIAL.tsv", "UTF-8");
+		//Collections.sort(specialPagesTitlesList);
+		//specialPagesTitlesWriter.println("<<< Number of special pages titles: " + SPECIAL_PAGES + " >>>");
+		//for (String title : specialPagesTitlesList) {
+		//	specialPagesTitlesWriter.println(title);
+		//}
+		//specialPagesTitlesWriter.flush();
+		//specialPagesTitlesWriter.close();
+		//cp.compressTxtBZ2("pagesTitles_SPECIAL.tsv");
 		// ***************************************************************************************//
 		// Writing ONLY Entity pages titles( i.e. without redirection
-		// (#REDIRECT) and without SPECIAL pages) to output file
-		// "pageTitles.tsv"
+		// (#REDIRECT) and without SPECIAL pages) to output file "pageTitles.tsv"
 		PrintWriter pagesTitlesWriter = new PrintWriter("pagesTitles.tsv", "UTF-8");
 		Collections.sort(pagesTitlesList);
 		pagesTitlesWriter.println("<<< Number of pages titles: " + ENTITYPAGE + " >>>");
@@ -2014,8 +2017,11 @@ public class Utils {
 
 		return text.trim();
 	}
+
 	/**
-	 *  This utility function will remove Singletons (i.e. mention types with only one entity assigned
+	 *  This utility function will remove unambiguous mentions from the original mention/entity file (i.e. mention types with only one entity assigned)
+	 *
+	 *	Al Pacino; Al Pacino; 1.0
 	 *
 	 * @param mentionEntityFile
 	 * @throws CompressorException
@@ -2032,8 +2038,6 @@ public class Utils {
 		while ((line = bffReader.readLine()) != null) {
 			String[] tempSplit = line.split(" ;-; ");
 			String mention1 = tempSplit[0].trim();
-			//String entity1 = tempSplit[1].trim();
-			//String prior1  = tempSplit[2].trim();
 			LinkedList<String> tempList1 = mentionMap1.get(mention1);
 			if(tempList1 == null){
 				tempList1 = new LinkedList<>();
@@ -2070,9 +2074,9 @@ public class Utils {
 	 * This utility function is meant to calculate a dominance measure.
 	 * It takes as input the mentionEntity_top5_2006 , the pageTitles from 2006, the mentionEntiity_top5_2016 and the pageTitles 2016
 	 *
-	 * @param inputFile1
+	 * @param inputFile1 	mentionEntity_top5
 	 * @param pageTitles1
-	 * @param inputFile2
+	 * @param inputFile2	mentionEntity_top5
 	 * @param pageTitles2
 	 * @throws CompressorException
 	 * @throws IOException
@@ -2082,7 +2086,7 @@ public class Utils {
 		HashMap<String,LinkedList<String>> mentionMap2 = new HashMap<>(); //map to store a mention and list of top5 disambiguations
 		TreeMap<String,String> pageTitlesMap1 = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);   //map to store the Entities and entities page ids
 		TreeMap<String,String> pageTitlesMap2 = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);	//map to store the Entities and entities page ids
-		PrintWriter writerDom = new PrintWriter("./resource/dominance_2008_2014.tsv", "UTF-8");
+		PrintWriter writerDom = new PrintWriter("./resource/dominance_2014_2016.tsv", "UTF-8");
 		BufferedReader bfR1 = getBufferedReaderForCompressedFile(pageTitles1);		//Here I am only reading the page titles list and adding to the pageTitlesMap1 that contains the entity and the entityID
 		String l = bfR1.readLine();
 		int x = 0;
@@ -2486,6 +2490,10 @@ public class Utils {
 			}
 		//********************************************************************************************//
 		writerKendall.close();
+		//
+		//Calculating statistical significance
+		//z-value
+		//z = (3 * KTau * sqrt(N (N -1) ) ) / (sqrt( 2*(2*N + 5) ))  //Check z-table
 	}
 
 
@@ -2519,7 +2527,9 @@ public class Utils {
 
 		BufferedReader bfR1 = getBufferedReaderForCompressedFile(pageTitles1);
 		String l = bfR1.readLine();
+		int x=0;
 		while((l = bfR1.readLine()) != null ){
+			x++;
 			Charset.forName("UTF-8").encode(l);
 			String temp[] = l.split(" \t ");
 			String entity = temp[0].trim();
@@ -2527,9 +2537,13 @@ public class Utils {
 			pageTitlesMap1.put(entity, entityID);
 		}
 		bfR1.close();
+		System.out.println("Number of page titles from pageTitles file "+pageTitles1+" : "+x);
+
+		int y=0;
 		BufferedReader bfR2 = getBufferedReaderForCompressedFile(pageTitles2);
 		String l2 = bfR2.readLine();
 		while((l2 = bfR2.readLine()) != null ){
+			y++;
 			Charset.forName("UTF-8").encode(l2);
 			String temp[] = l2.split(" \t ");
 			String entity = temp[0].trim();
@@ -2537,10 +2551,12 @@ public class Utils {
 			pageTitlesMap2.put(entity, entityID);
 		}
 		bfR2.close();
-
+		System.out.println("Number of page titles from pageTitles file "+pageTitles2+" : "+y);
 		//Here I am reading the mention/entity file 1 and adding the entities to a hashmap
 		String line1 = null;
+		int z=0;
 		while ((line1 = buffReader1.readLine()) != null) {
+			z++;
 			Charset.forName("UTF-8").encode(line1);
 			String[] tempSplit = line1.split(" ;-; ");
 			String mention1 = tempSplit[0].trim();
@@ -2556,10 +2572,13 @@ public class Utils {
 				}
 			}
 		buffReader1.close();
+		System.out.println("Number of unambiguous entities from file "+mentionEntity1+" : "+z);
 
 		//Here I am reading the mention/entity 2 file and adding the entities to a hashmap
 		String line2 = null;
+		int k=0;
 		while ((line2 = buffReader2.readLine()) != null) {
+			k++;
 			Charset.forName("UTF-8").encode(line2);
 			String[] tempSplit = line2.split(" ;-; ");
 			String mention2 = tempSplit[0].trim();
@@ -2577,6 +2596,8 @@ public class Utils {
 				}
 			}
 		buffReader2.close();
+		System.out.println("Number of unambiguous entities from file "+mentionEntity2+" : "+k);
+
 		int mentionInCommon = 0;
 		for(Map.Entry<String,LinkedList<String>> entry : mentionMap1.entrySet()) {
 			String keyMention1 = entry.getKey();
@@ -2641,6 +2662,8 @@ public class Utils {
 				continue;
 			}
 		}
+
+		System.out.println("Number of mentions in commom : "+mentionInCommon);
 	}
 
 	/**
