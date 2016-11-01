@@ -45,6 +45,7 @@ import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 import org.l3s.Prior.PriorOnlyModel;
+import org.l3s.model.PageLinksCount;
 import org.l3s.statistics.Statistics;
 
 import edu.jhu.nlp.wikipedia.PageCallbackHandler;
@@ -1902,105 +1903,66 @@ public class Utils {
 	/**
 	 * In "Learning to Link with Wikipedia" by David Milne and Ian H. Witten
 	 * they only select pages that had 50 links or more, therefore I am parsing
-	 * a Wikipedia dump and only storing pages that has more than 50 links.
+	 * a Wikipedia dump and counting the page links.
 	 *
-	 * This method is NOT USED yet.
 	 *
 	 * @param inputFile
 	 * @param outputFile
-	 * @throws FileNotFoundException
+	 * @throws ParseException
+	 * @throws IOException
 	 * @throws UnsupportedEncodingException
 	 */
-	public void writePagesLinksCount(String inputFile) throws FileNotFoundException, UnsupportedEncodingException {
-		PrintWriter writer = new PrintWriter("pageLinksCount.txt", "UTF-8");
-		ArrayList<String> pageLinksOut = new ArrayList<>();
-		WikiXMLParser wxsp = null;
-		try {
-			wxsp = WikiXMLParserFactory.getSAXParser(inputFile);
-		} catch (MalformedURLException e) {
-			e.printStackTrace();
-		}
-		try {
-			wxsp.setPageCallback(new PageCallbackHandler() {
-				public void process(WikiPage page) {
-					String wikitext = page.getWikiText().trim();
-					String text = getPlainText(wikitext);
-					String title = page.getTitle().replaceAll("_", " ").trim();
-					int linkCount = 0;
-					char[] pTitleArray = title.trim().toCharArray();
-					if (pTitleArray.length > 0) {
-						pTitleArray[0] = Character.toUpperCase(pTitleArray[0]);
-						title = new String(pTitleArray);
-					}
-					if (isSpecial(title)) {
-					} else {
-						if (title.contains("(disambiguation)")) {
-						} else {
-							Matcher mRedirect = redirectPattern.matcher(wikitext);
-							if (mRedirect.find()) {
-							} else {
-								if ((text != null) && (text != " ")) {
-									Matcher matcher = mentionEntityPattern.matcher(text);
-									while (matcher.find()) {
-										String[] temp = matcher.group(1).split("\\|");
-										if (temp == null || temp.length == 0) {
-											continue;
-										}
-										String mention = null;
-										String entitylink = null;
-										if (temp.length > 1) {
-											entitylink = temp[0].replaceAll("_", " ").trim();
-											mention = temp[1].trim();
-										} else {
-											entitylink = temp[0].replaceAll("_", " ").trim();
-											// mention =
-											// temp[0].replaceAll("_","
-											// ").trim();
-											mention = temp[0].trim();
-										}
-										if (mention.length() == 0 || (mention == " ") || (entitylink.length() == 0)
-												|| (entitylink == " ")) {
-											continue;
-										}
-										if (mention.contains(":") || (entitylink.contains(":"))) { // ignoring rubbish such as Image:Kropotkin Nadar.jpg]
-											continue;
-										}
-										if (mention.contains("(disambiguation)")
-												|| (entitylink.contains("(disambiguation)"))) { // disambiguation
-											continue;
-										}
-										if (entitylink.contains("#")) {
-											if ((entitylink.indexOf("#") != 0) && (entitylink.indexOf("#") != -1)) {
-												entitylink = entitylink.substring(0, entitylink.indexOf("#"));
-											}
-										}
-										int spaceIndex = mention.indexOf("(");
-										if ((spaceIndex != 0) && (spaceIndex != -1)) {
-											mention = mention.substring(0, spaceIndex);
-										}
-										linkCount++;
-										pageLinksOut.add(title + " ;-; " + entitylink);
-									}
-									if (linkCount >= 50) {
-										writer.println(title + " ;-; " + linkCount);
-										linkCount = 0;
-									}
-								}
-							}
-						}
-					}
+	public void writePagesLinksCount(String inputFile) throws IOException, ParseException {
+		JSONParser parser = new JSONParser();
+		FileReader reader = new FileReader(inputFile);
+		Object obj = parser.parse(reader);
+		JSONArray array = (JSONArray) obj;
+		Map<String, PageLinksCount> entityLinksCountMap = new TreeMap<String, PageLinksCount>();
+
+		int jsonSize = array.size();
+		int linksIN = 0;
+		int linksOUT = 0;
+		for (int i = 0; i < jsonSize; i++) {
+			JSONObject jobject = (JSONObject) array.get(i);
+			String pageTitleID = (String) jobject.get("pageTitleID");
+			@SuppressWarnings("unchecked")
+			ArrayList<String> Links = (ArrayList<String>) jobject.get("links");
+			linksOUT = Links.size();
+			PageLinksCount firstObj = entityLinksCountMap.get(pageTitleID);
+			if(firstObj != null){
+				//linksOUT = firstObj.getLinksOut();
+				linksIN = firstObj.getLinksIn();
+				firstObj = new PageLinksCount(linksIN, linksOUT);
+				entityLinksCountMap.put(pageTitleID, firstObj);
+			}else{
+				firstObj = new PageLinksCount(0, linksOUT);
+				entityLinksCountMap.put(pageTitleID, firstObj);
+			}
+
+			for(String ss: Links){
+				PageLinksCount plcObj = entityLinksCountMap.get(ss);
+
+				if(plcObj != null){
+					int count = plcObj.getLinksIn();
+					linksOUT = plcObj.getLinksOut();
+					count+=1;
+					plcObj = new PageLinksCount(count, linksOUT);
+					entityLinksCountMap.put(ss, plcObj);
+				}else{
+					linksOUT = 0;
+					plcObj = new PageLinksCount(1, linksOUT);
+					entityLinksCountMap.put(ss, plcObj);
 				}
-			});
-			wxsp.parse();
-		} catch (Exception e) {
-			e.printStackTrace();
+			}
 		}
-		writer.flush();
-		writer.close();
-		Collections.sort(pageLinksOut);
-		PrintWriter pwriter = new PrintWriter(new File("pageLinksOut.txt"));
-		for (String s : pageLinksOut) {
-			pwriter.println(s);
+		PrintWriter pwriter = new PrintWriter(new File("pageLinksCount.txt"));
+		Iterator<?> it = entityLinksCountMap.entrySet().iterator();
+		while (it.hasNext()) {
+			@SuppressWarnings("rawtypes")
+			Map.Entry pair = (Map.Entry) it.next();
+			String key = (String) pair.getKey();
+			PageLinksCount value = (PageLinksCount) pair.getValue();
+			pwriter.println(key+"\tLinksIN:"+value.getLinksIn()+"\tLinksOUT:"+value.getLinksOut());
 		}
 		pwriter.flush();
 		pwriter.close();
