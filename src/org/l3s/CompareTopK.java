@@ -10,7 +10,6 @@ import java.util.Map;
 import java.util.TreeMap;
 import org.apache.commons.compress.compressors.CompressorException;
 import org.json.simple.parser.ParseException;
-
 /**
  * @author Renato Stoffalette Joao
  * @mail renatosjoao@gmail.com
@@ -23,7 +22,6 @@ public class CompareTopK {
 	public CompareTopK() {
 		super();
 	}
-	
 	/**
 	 * Main entry point
 	 *
@@ -39,9 +37,9 @@ public class CompareTopK {
 			} catch (IOException | CompressorException | ParseException e) {
 				e.printStackTrace();
 			}
-		} 
+		}
 	}
-	
+
 	/**
 	 * This function compares the mention/entity pairs top K changes  !!!
 	 *
@@ -54,14 +52,13 @@ public class CompareTopK {
 	 * @param pageRedirection2		redirection file 2
 	 * @throws IOException
 	 * @throws CompressorException
-	 * @throws ParseException 
+	 * @throws ParseException
 	 */
 	public void compare(String inputFile1, String pageTitles1, String pageRedirection1, String inputFile2, String pageTitles2, String pageRedirection2) throws IOException, CompressorException, ParseException{
 		TreeMap<String,LinkedList<String>> mentionMap1 = new TreeMap<>(); //map to store a mention and list of top5 disambiguations
 		TreeMap<String,LinkedList<String>> mentionMap2 = new TreeMap<>(); //map to store a mention and list of top5 disambiguations
 
 		Utils ut = new Utils();
-		
 		int x=0 , y=0, z=0, m=0;
 
 		TreeMap<String,String> pageTitlesMap1 = new TreeMap<>();
@@ -69,8 +66,7 @@ public class CompareTopK {
 
 		TreeMap<String,String> titlesRedirectMap1 = ut.loadTitlesRedirectMap(pageRedirection1);
 		TreeMap<String,String> titlesRedirectMap2 = ut.loadTitlesRedirectMap(pageRedirection2);
-		
-		
+
 		//Here I am only reading the page titles list and adding to the pageTitlesMap1 that contains the entity and the entityID
 		BufferedReader bfR1 = ut.getBufferedReaderForCompressedFile(pageTitles1);
 		String l = bfR1.readLine();
@@ -219,58 +215,39 @@ public class CompareTopK {
 					double prior_after = Double.parseDouble(valueEntities2.get(0).split(" :=: ")[1].trim());
 					Pwriter.println("M="+keyMention1+ "\tE_bef="+valueEntities1.get(0)+"\t"+"E_id:" + EntID1 +"\tE_after="+valueEntities2.get(0)+"\t"+"E_id:" + EntID2);// + "\tMAD:"+Math.abs((prior_before-prior_after)/2));
 					priorRatesNOTChanged.add(prior_before/prior_after);
-				
-				}else{ 
-					
-
-					String redir1 = titlesRedirectMap1.get(entityFromList2); 
+				}else{
+					String redir1 = titlesRedirectMap1.get(entityFromList2);
 					if(redir1!=null){
 						if(redir1.equalsIgnoreCase(entityFromList1)){
-							System.out.println("M="+keyMention1+ "\tE_bef="+valueEntities1.get(0)+"\t"+"E_id:" + EntID1 +"\tE_after="+valueEntities2.get(0)+"\t"+"E_id:" + EntID2);
 							Pwriter.println("M="+keyMention1+ "\tE_bef="+valueEntities1.get(0)+"\t"+"E_id:" + EntID1 +"\tE_after="+valueEntities2.get(0)+"\t"+"E_id:" + EntID2);// + "\tMAD:"+Math.abs((prior_before-prior_after)/2));
 							continue;
 						}else{
-							//System.out.println(" ");
 						}
 					}
-					
 					redir1 = titlesRedirectMap1.get(entityFromList1);
 					if(redir1!=null){
 						if(redir1.equalsIgnoreCase(entityFromList2)){
-							System.out.println("M="+keyMention1+ "\tE_bef="+valueEntities1.get(0)+"\t"+"E_id:" + EntID1 +"\tE_after="+valueEntities2.get(0)+"\t"+"E_id:" + EntID2);
 							Pwriter.println("M="+keyMention1+ "\tE_bef="+valueEntities1.get(0)+"\t"+"E_id:" + EntID1 +"\tE_after="+valueEntities2.get(0)+"\t"+"E_id:" + EntID2);// + "\tMAD:"+Math.abs((prior_before-prior_after)/2));
 							continue;
 						}else{
-							//System.out.println(" ");
 						}
 					}
-					
-					
 					String redir2 = titlesRedirectMap2.get(entityFromList1);
 					if(redir2!=null){
 						if(redir2.equalsIgnoreCase(entityFromList2)){
-							System.out.println("M="+keyMention1+ "\tE_bef="+valueEntities1.get(0)+"\t"+"E_id:" + EntID1 +"\tE_after="+valueEntities2.get(0)+"\t"+"E_id:" + EntID2);
 							Pwriter.println("M="+keyMention1+ "\tE_bef="+valueEntities1.get(0)+"\t"+"E_id:" + EntID1 +"\tE_after="+valueEntities2.get(0)+"\t"+"E_id:" + EntID2);// + "\tMAD:"+Math.abs((prior_before-prior_after)/2));
 							continue;
 						}else{
-							//System.out.println(" ");
 						}
 					}
 					redir2 = titlesRedirectMap2.get(entityFromList2);
 					if(redir2!=null){
 						if(redir2.equalsIgnoreCase(entityFromList1)){
 							Pwriter.println("M="+keyMention1+ "\tE_bef="+valueEntities1.get(0)+"\t"+"E_id:" + EntID1 +"\tE_after="+valueEntities2.get(0)+"\t"+"E_id:" + EntID2);// + "\tMAD:"+Math.abs((prior_before-prior_after)/2));
-							System.out.println("M="+keyMention1+ "\tE_bef="+valueEntities1.get(0)+"\t"+"E_id:" + EntID1 +"\tE_after="+valueEntities2.get(0)+"\t"+"E_id:" + EntID2);
 							continue;
 						}else{
-							//System.out.println(" ");
 						}
 					}
-					
-					
-					
-					
-					
 					// The entity has  REEEEEALLY changed
 					//entityChanged++;
 					double prior_before = Double.parseDouble(valueEntities1.get(0).split(" :=: ")[1].trim());
@@ -392,23 +369,19 @@ public class CompareTopK {
 					String entityANDprior1 = listEntities1.get(i);
 					String entity1only = entityANDprior1.split(" :=: ")[0].trim();
 					//double prior1only = Double.parseDouble(entityANDprior1.split(" :=: ")[1].trim());
-
 					for(int j=0; j<list2Size; j++){
 					//for(String entityANDprior2: listEntities2){
 						String entityANDprior2 = listEntities2.get(j);
 						String entity2only = entityANDprior2.split(" :=: ")[0].trim();
 						//double prior2only = Double.parseDouble(entityANDprior2.split(" :=: ")[1].trim());
-						
 						String EID1 = pageTitlesMap1.get(entity1only).trim();
 						String EID2 = pageTitlesMap2.get(entity2only).trim();
-
 						if( (entity2only.equalsIgnoreCase(entity1only) ) || (EID1.equalsIgnoreCase(EID2))  ){
 							gotIt = true; //this means the second map has the entity from the first map. The entity names have not changed.
 							//Pwriter3.println("MENTION="+keyMention1+"\tE_BEF="+entity1only+":"+prior1only+"\t"+"E_ID:" + pageTitlesMap1.get(entity1only)+"\tPOS="+(i+1)+"\tE_AFTER ="+entity2only+":"+prior2only+"\t"+"E_ID:" + pageTitlesMap2.get(entity2only) + "\tPOS="+(j+1)+"\tRATIO:"+Math.abs((prior1only-prior2only)/2));
 							break;
 						}else {
-							
-							String redir1 = titlesRedirectMap1.get(entity2only); 
+							String redir1 = titlesRedirectMap1.get(entity2only);
 							if(redir1!=null){
 								if(redir1.equalsIgnoreCase(entity1only)){
 									gotIt = true;
@@ -440,9 +413,6 @@ public class CompareTopK {
 								}else{
 								}
 							}
-							
-							
-							
 								//Pwriter1.println("MENTION = "+key1+ " \t E_BEF = "+entity1only+":"+prior1only+" \t "+"E_ID:" + pageTitlesMap1.get(entity1only) +" \t E_AFTER = "+entity2only+":"+prior2only+" \t "+"E_ID:" + pageTitlesMap2.get(entity2only) + " \t RATIO:"+prior1only/prior2only);
 								gotIt = false;
 								//Pwriter2.println("MENTION = "+key1+ " \t E_BEF = "+entity1only+":"+prior1only+" \t "+"E_ID:" + pageTitlesMap1.get(entity1only) +" \t E_AFTER = "+entity2only+":"+prior2only+" \t "+"E_ID:" + pageTitlesMap2.get(entity2only) + " \t RATIO:"+prior1only/prior2only);
