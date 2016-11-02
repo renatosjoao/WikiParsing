@@ -72,9 +72,7 @@ public class RemoveUnambiguous {
 		Compressor cp = new Compressor();
 		cp.compressTxtBZ2(outputFile+"_NOSINGLE");
 		cp.compressTxtBZ2(outputFile+"_SINGLETON");
-	
 	}
-
 
 	/**
 	 * Main entry point
