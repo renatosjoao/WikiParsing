@@ -36,8 +36,8 @@ public class RemoveUnambiguous {
 		BufferedReader bffReader = ut.getBufferedReaderForCompressedFile(mentionEntityFile);
 		String outputFile = mentionEntityFile.substring(0, mentionEntityFile.lastIndexOf('.'));
 		TreeMap<String,LinkedList<String>> mentionMap1 = new TreeMap<>();
-		PrintWriter writer = new PrintWriter(outputFile+"_NOSINGLE", "UTF-8");
-		PrintWriter writerS = new PrintWriter(outputFile+"_SINGLETON", "UTF-8");
+		PrintWriter writer = new PrintWriter(outputFile+"_NO_UNAMBIGUOUS", "UTF-8");
+		PrintWriter writerS = new PrintWriter(outputFile+"_UNAMBIGUOUS", "UTF-8");
 		String line = null;
 		while ((line = bffReader.readLine()) != null) {
 			String[] tempSplit = line.split(" ;-; ");
