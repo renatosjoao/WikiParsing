@@ -187,8 +187,8 @@ public class CompareTopK {
 		//TOP 1 ***********************************************//
 		//Let us iterate over the Map1 !
 //		//*****************************************************//
-		PrintWriter Pwriter = new PrintWriter("comparison_Results_NOTchanged_top1", "UTF-8");
-		PrintWriter Pwriter2 = new PrintWriter("comparison_Results_changed_top1", "UTF-8");
+		PrintWriter Pwriter = new PrintWriter("comparison_Results_NOT_changed_top_1.txt", "UTF-8");
+		PrintWriter Pwriter2 = new PrintWriter("comparison_Results_changed_top_1.txt", "UTF-8");
 		LinkedList<Double> priorRatesNOTChanged = new LinkedList<>();
 		LinkedList<Double> priorRatesChanged = new LinkedList<>();
 		int mentionOut = 0;
@@ -336,8 +336,8 @@ public class CompareTopK {
 
 		//PrintWriter Pwriter3 = new PrintWriter("comparison_Results_NOTchanged_top5", "UTF-8");
 		//PrintWriter Pwriter4= new PrintWriter("comparison_Results_changed_top5", "UTF-8");
-		PrintWriter Pwriter5 = new PrintWriter("comparison_Results_changed_0", "UTF-8");
-		PrintWriter Pwriter6 = new PrintWriter("comparison_Results_changed_5", "UTF-8");
+		PrintWriter Pwriter5 = new PrintWriter("comparison_Results_changed_0.txt", "UTF-8");
+		PrintWriter Pwriter6 = new PrintWriter("comparison_Results_changed_5.txt", "UTF-8");
 
 		/// running comparisons from map1 mentions
 		int commonMention=0;
