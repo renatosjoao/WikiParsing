@@ -45,6 +45,7 @@ public class CompareTopK {
 	/**
 	 * This function compares the mention/entity pairs top K changes  !!!
 	 *
+	 * I am also performing a verification whether the entity changed the name by comparing the entity page ID.
 	 *
 	 * @param inputFile1 			mentionEntity file 1
 	 * @param pageTitles1 			page titles file1
@@ -103,9 +104,8 @@ public class CompareTopK {
 		int entityDoesNotExist=0;
 		int linefile1 =0;
 		LinkedList<Integer> topKChanged = new LinkedList<>();
-		//reading the first file and populating the first MAP
 
-		//BufferedReader buffReader1 = new BufferedReader(new FileReader(new File(inputFile1)));// getBufferedReaderForCompressedFile(inputFile1);
+		//reading the first file and populating the first MAP
 		BufferedReader buffReader1 = ut.getBufferedReaderForCompressedFile(inputFile1);
 		String line1 = null;
 
@@ -121,7 +121,6 @@ public class CompareTopK {
 
 			if((EID1==null) || (EID1=="")){
 				// This case the pageTitles list does not have the page ID therefore I am not interested.
-				//System.out.println(mention1 + " ===: " + entity1);
 				entityDoesNotExist++;
 				continue;
 			}else{
@@ -135,22 +134,17 @@ public class CompareTopK {
 				mentionMap1.put(mention1, tempList1);
 			}else{
 				//noz++;
-				///System.out.println(entity);
 				//tempList.add(entity+" : "+prior);
 				//tempList1.add(entity1+" :=: "+prior1);
 				//mentionMap1.put(mention1, tempList1);
 			}
 			}
 		}
-
 		buffReader1.close();
-		//System.out.println(" Number of lines file 1 : "+linefile1);
 		System.out.println("Number of different mentions in Map 1 "+z);
-		//System.exit(1);
 
 		entityDoesNotExist = 0;
 		//reading the second file and populating the second MAP
-		//BufferedReader buffReader2 = new BufferedReader(new FileReader(new File(inputFile2)));// getBufferedReaderForCompressedFile(inputFile1);
 		BufferedReader buffReader2 = ut.getBufferedReaderForCompressedFile(inputFile2);
 		String line2 = null;
 
