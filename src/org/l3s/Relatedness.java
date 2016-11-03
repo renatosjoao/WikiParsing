@@ -122,8 +122,8 @@ public class Relatedness {
 		String entityB_ID;
 		entityA_ID = pgTitlesMap.get(entityA);
 		entityB_ID = pgTitlesMap.get(entityB);
-		System.out.println(entityA + " : " + entityA_ID);
-		System.out.println(entityB + " : "+ entityB_ID);
+		//System.out.println(entityA + " : " + entityA_ID);
+		//System.out.println(entityB + " : "+ entityB_ID);
 		int jsonSize = array.size();
 		for (int i = 0; i < jsonSize; i++) {
 			numArticles++;
