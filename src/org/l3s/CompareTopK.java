@@ -5,9 +5,11 @@ import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.charset.Charset;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Map;
 import java.util.TreeMap;
+
 import org.apache.commons.compress.compressors.CompressorException;
 import org.json.simple.parser.ParseException;
 /**
@@ -480,4 +482,180 @@ public class CompareTopK {
 		pwrt.flush();
 		pwrt.close();
 	}
+
+	/**
+	 *
+	 *	This utility function as the name says only compares unambiguous mentions.
+	 *  It requires the mention/Entity file with only unambigous mention/entity pairs.
+	 *
+	 * @param mentionEntity1		mentionEntityLinks_PRIOR_100_top5_SINGLETON.bz2
+	 * @param pageTitles1			pagesTitles.tsv.bz2
+	 * @param titlesRedirection1	pagesTitles_REDIRECT.json
+	 * @param mentionEntity2
+	 * @param pageTitles2
+	 * @param titlesRedirection2
+	 * @throws IOException
+	 * @throws CompressorException
+	 * @throws ParseException
+	 */
+	public void compareUnambiguous(String mentionEntity1, String pageTitles1, String titlesRedirection1, String mentionEntity2, String pageTitles2,String titlesRedirection2) throws IOException, CompressorException, ParseException{
+		Utils ut = new Utils();
+		BufferedReader buffReader1 = ut.getBufferedReaderForCompressedFile(mentionEntity1);
+		//BufferedReader buffReader2 = new BufferedReader(new FileReader(new File(inputFile2)));
+		BufferedReader buffReader2 = ut.getBufferedReaderForCompressedFile(mentionEntity2);
+
+		HashMap<String,LinkedList<String>> mentionMap1 = new HashMap<>(); //map to store a mention and list of top5 disambiguations
+		HashMap<String,LinkedList<String>> mentionMap2 = new HashMap<>(); //map to store a mention and list of top5 disambiguations
+
+		//PriorOnlyModel POM  = new PriorOnlyModel();
+		Map<String, String> titlesRedMap1 = ut.loadTitlesRedirectMap(titlesRedirection1);
+		Map<String, String> titlesRedMap2 = ut.loadTitlesRedirectMap(titlesRedirection2);
+
+		TreeMap<String,String> pageTitlesMap1 = new TreeMap<>();   //map to store the Entities and entities page ids
+		TreeMap<String,String> pageTitlesMap2 = new TreeMap<>();	//map to store the Entities and entities page ids
+
+		BufferedReader bfR1 = ut.getBufferedReaderForCompressedFile(pageTitles1);
+		String l = bfR1.readLine();
+		int x=0;
+		while((l = bfR1.readLine()) != null ){
+			x++;
+			Charset.forName("UTF-8").encode(l);
+			String temp[] = l.split(" \t ");
+			String entity = temp[0].trim();
+			String entityID = temp[1].trim();
+			pageTitlesMap1.put(entity, entityID);
+		}
+		bfR1.close();
+		System.out.println("Number of page titles from pageTitles file "+pageTitles1+" : "+x);
+
+		int y=0;
+		BufferedReader bfR2 = ut.getBufferedReaderForCompressedFile(pageTitles2);
+		String l2 = bfR2.readLine();
+		while((l2 = bfR2.readLine()) != null ){
+			y++;
+			Charset.forName("UTF-8").encode(l2);
+			String temp[] = l2.split(" \t ");
+			String entity = temp[0].trim();
+			String entityID = temp[1].trim();
+			pageTitlesMap2.put(entity, entityID);
+		}
+		bfR2.close();
+		System.out.println("Number of page titles from pageTitles file "+pageTitles2+" : "+y);
+		//Here I am reading the mention/entity file 1 and adding the entities to a hashmap
+		String line1 = null;
+		int z=0;
+		while ((line1 = buffReader1.readLine()) != null) {
+			z++;
+			Charset.forName("UTF-8").encode(line1);
+			String[] tempSplit = line1.split(" ;-; ");
+			String mention1 = tempSplit[0].trim();
+			String entity1 = tempSplit[1].trim();
+			LinkedList<String> tempList1 = mentionMap1.get(mention1);
+			if(tempList1 == null){
+				tempList1 = new LinkedList<>();
+				tempList1.add(entity1);
+				mentionMap1.put(mention1, tempList1);
+			}else{
+				tempList1.add(entity1);
+				mentionMap1.put(mention1, tempList1);
+				}
+			}
+		buffReader1.close();
+		System.out.println("Number of unambiguous entities from file "+mentionEntity1+" : "+z);
+
+		//Here I am reading the mention/entity 2 file and adding the entities to a hashmap
+		String line2 = null;
+		int k=0;
+		while ((line2 = buffReader2.readLine()) != null) {
+			k++;
+			Charset.forName("UTF-8").encode(line2);
+			String[] tempSplit = line2.split(" ;-; ");
+			String mention2 = tempSplit[0].trim();
+			String entity2 = tempSplit[1].trim();
+			String prior2  = tempSplit[2].trim();
+			String EID2 = pageTitlesMap2.get(entity2);
+			LinkedList<String> tempList2 = mentionMap2.get(mention2);
+			if(tempList2 == null){
+				tempList2 = new LinkedList<>();
+				tempList2.add(entity2);
+				mentionMap2.put(mention2, tempList2);
+			}else{
+				tempList2.add(entity2);
+				mentionMap2.put(mention2, tempList2);
+				}
+			}
+		buffReader2.close();
+		System.out.println("Number of unambiguous entities from file "+mentionEntity2+" : "+k);
+
+		int mentionInCommon = 0;
+
+
+		//Here I iterate over the Map file to start comparing changes for unambiguous mentions
+		for(Map.Entry<String,LinkedList<String>> entry : mentionMap1.entrySet()) {
+			String keyMention1 = entry.getKey();
+			String keyMention2 = keyMention1;
+			// Considering the mention from Map1 is also present in Map2
+			if(mentionMap2.containsKey(keyMention1)){
+				mentionInCommon++;
+				//getting the list of entities for Mention1
+				LinkedList<String> listEntities1 = (LinkedList<String>) mentionMap1.get(keyMention1);
+				int list1Size = listEntities1.size();
+
+				// getting the list of entities from Mention 2
+				LinkedList<String> listEntities2 = (LinkedList<String>) mentionMap2.get(keyMention2);
+				int list2Size = listEntities2.size();
+
+				for(String entity1 : listEntities1){
+					String EID1 = pageTitlesMap1.get(entity1);
+					if((EID1==null) || (EID1=="")){
+						break;
+					}
+					for(String entity2 : listEntities2){
+						String EID2 = pageTitlesMap2.get(entity2);
+						if((EID2==null) || (EID2=="")){
+							break;
+						}
+						if( (entity1.equalsIgnoreCase(entity2) ) ||  (EID1.equalsIgnoreCase(EID2)) ){
+							//entityNOTChanged++;
+						}else{
+							//checking redirections
+							String redirectedEntity = titlesRedMap1.get(entity1);
+							//if ((redirectedEntity != null) && (redirectedEntity.equalsIgnoreCase(entity1))) {
+								//truePositive++;
+							//	break;
+							//}
+							if ((redirectedEntity != null) && (redirectedEntity.equalsIgnoreCase(entity2))) {
+								break;
+							}
+							redirectedEntity = titlesRedMap1.get(entity2);
+							if ((redirectedEntity != null) && (redirectedEntity.equalsIgnoreCase(entity1))) {
+								//truePositive++;
+								break;
+							}
+							//if ((redirectedEntity != null) && (redirectedEntity.equalsIgnoreCase(entity2))) {
+								//truePositive++;
+								//System.out.println(mentionGT + "\t" + entityGT +"\t "+ entityWIKI);
+							//	break;
+							redirectedEntity = titlesRedMap2.get(entity1);
+							if ((redirectedEntity != null) && (redirectedEntity.equalsIgnoreCase(entity2))) {
+								break;
+							}
+							redirectedEntity = titlesRedMap2.get(entity2);
+							if ((redirectedEntity != null) && (redirectedEntity.equalsIgnoreCase(entity1))) {
+								break;
+							}else{
+									System.out.println("M :"+keyMention1 + "\t E :"+entity1 + "\t E :"+entity2);
+									break;
+								}
+						}
+					}
+				}
+			}else{
+				continue;
+			}
+		}
+
+		System.out.println("Number of mentions in commom : "+mentionInCommon);
+	}
+
 }
